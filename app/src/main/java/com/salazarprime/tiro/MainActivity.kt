@@ -271,7 +271,8 @@ class MainActivity : Activity() {
                         preview.layoutParams = LinearLayout.LayoutParams(size, size)
                         preview.background = this@MainActivity.glassBackground(
                             radius = size * 0.215f,
-                            strokeWidth = 0,
+                            strokeColor = palette.aqua,
+                            strokeWidth = dp(2),
                         )
                         preview.alpha = previewOpacity
                     }
@@ -280,7 +281,6 @@ class MainActivity : Activity() {
                         LinearLayout(this@MainActivity).apply {
                             gravity = Gravity.CENTER
                             minimumHeight = dp(132)
-                            background = this@MainActivity.glassBackground(dp(18).toFloat())
                             addView(preview)
                         },
                         matchWidth(),
