@@ -92,7 +92,7 @@ class MainActivity : Activity() {
             setBackgroundColor(palette.canvas)
         }
         content.addView(hero())
-        content.addView(spacer(30))
+        content.addView(spacer(12))
         content.addView(appearanceSection())
         content.addView(spacer(28))
         content.addView(historySection())

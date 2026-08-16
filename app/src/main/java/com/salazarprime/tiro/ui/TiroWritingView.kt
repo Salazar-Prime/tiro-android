@@ -49,7 +49,7 @@ internal class TiroWritingView(
         style = Paint.Style.FILL
         textSize = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
-            62f,
+            124f,
             resources.displayMetrics,
         )
         typeface = Typeface.create(resources.getFont(R.font.dancing_script), 620, false)
@@ -357,7 +357,7 @@ internal class TiroWritingView(
 
 internal object TiroWritingTimeline {
     const val START_DELAY_MILLIS = 140L
-    const val DURATION_MILLIS = 1_850L
+    const val DURATION_MILLIS = 2_600L
     const val CARET_BLINK_MILLIS = 520L
     private const val WRITING_END = 0.84f
     private const val FILL_START = 0.72f
