@@ -21,9 +21,11 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.inputmethod.EditorInfo
+import android.view.animation.DecelerateInterpolator
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -125,26 +127,85 @@ class MainActivity : Activity() {
         gravity = Gravity.CENTER_VERTICAL
         minimumHeight = dp(82)
         addView(
-            TextView(this@MainActivity).apply {
-                text = getString(R.string.app_name)
-                setTextColor(palette.ink)
-                textSize = 44f
-                typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
-                letterSpacing = -0.035f
-            },
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-        )
-        addView(
             ImageView(this@MainActivity).apply {
                 setImageResource(R.drawable.ic_tiro_overlay_foreground)
                 scaleType = ImageView.ScaleType.FIT_CENTER
-                contentDescription = "Tiro"
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 setPadding(dp(3), dp(3), dp(3), dp(3))
                 elevation = dp(10).toFloat()
                 background = this@MainActivity.glassBackground(dp(16).toFloat())
             },
-            LinearLayout.LayoutParams(dp(70), dp(70)),
+            LinearLayout.LayoutParams(dp(66), dp(66)),
         )
+        addView(
+            LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.BOTTOM
+                setPadding(dp(16), 0, 0, 0)
+                addView(
+                    TextView(this@MainActivity).apply {
+                        text = getString(R.string.app_name)
+                        setTextColor(palette.aqua)
+                        textSize = 54f
+                        typeface = Typeface.create(
+                            resources.getFont(R.font.dancing_script),
+                            620,
+                            false,
+                        )
+                        includeFontPadding = false
+                    },
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ),
+                )
+                addView(
+                    typingCaret(),
+                    LinearLayout.LayoutParams(dp(25), dp(3)).apply {
+                        gravity = Gravity.BOTTOM
+                        bottomMargin = dp(8)
+                    },
+                )
+            },
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ),
+        )
+        addView(
+            View(this@MainActivity),
+            LinearLayout.LayoutParams(0, 1, 1f),
+        )
+    }
+
+    private fun typingCaret(): View = object : View(this) {
+        private var caretVisible = true
+        private val blink = object : Runnable {
+            override fun run() {
+                caretVisible = !caretVisible
+                animate()
+                    .alpha(if (caretVisible) 1f else 0.08f)
+                    .setDuration(130)
+                    .start()
+                postDelayed(this, 520)
+            }
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            caretVisible = true
+            alpha = 1f
+            postDelayed(blink, 520)
+        }
+
+        override fun onDetachedFromWindow() {
+            removeCallbacks(blink)
+            animate().cancel()
+            super.onDetachedFromWindow()
+        }
+    }.apply {
+        setBackgroundColor(palette.amber)
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
 
     private fun accessSection(): View {
@@ -508,19 +569,106 @@ class MainActivity : Activity() {
                             if (index != minOf(4, transcripts.lastIndex)) addView(divider())
                         }
                         addView(spacer(12))
-                        addView(
-                            smallButton("Clear history", "Clear all transcript history").apply {
-                                setTextColor(palette.coral)
-                                setOnClickListener {
-                                    historyStore.clear()
-                                    render()
-                                }
-                            },
-                        )
+                        addView(historyClearControl(), matchWidth())
                     }
                 },
             )
         }
+    }
+
+    private fun historyClearControl(): View {
+        val interpolator = DecelerateInterpolator()
+        val container = FrameLayout(this).apply {
+            minimumHeight = dp(52)
+            cameraDistance = dp(1_800).toFloat()
+        }
+        val clearButton = smallButton("Clear history", "Clear all transcript history").apply {
+            setTextColor(palette.amber)
+        }
+        val confirmation = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.INVISIBLE
+            rotationX = -90f
+            alpha = 0f
+            setPadding(dp(14), dp(5), dp(5), dp(5))
+            background = roundedBackground(
+                fill = palette.field,
+                radius = dp(14).toFloat(),
+                strokeColor = palette.stroke,
+                strokeWidth = dp(1),
+            )
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = getString(R.string.are_you_sure)
+                    setTextColor(palette.ink)
+                    textSize = 13f
+                    typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
+                },
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+            )
+        }
+
+        fun flip(from: View, to: View) {
+            from.animate().cancel()
+            to.animate().cancel()
+            from.animate()
+                .rotationX(90f)
+                .alpha(0f)
+                .setDuration(130)
+                .setInterpolator(interpolator)
+                .withEndAction {
+                    from.visibility = View.INVISIBLE
+                    from.rotationX = 0f
+                    to.rotationX = -90f
+                    to.alpha = 0f
+                    to.visibility = View.VISIBLE
+                    to.animate()
+                        .rotationX(0f)
+                        .alpha(1f)
+                        .setDuration(170)
+                        .setInterpolator(interpolator)
+                        .start()
+                }
+                .start()
+        }
+
+        val cancelButton = smallButton("Cancel", "Cancel clearing history").apply {
+            setOnClickListener { flip(confirmation, clearButton) }
+        }
+        val confirmButton = smallButton("Clear", "Confirm clearing history").apply {
+            setTextColor(palette.amber)
+            setOnClickListener {
+                historyStore.clear()
+                render()
+            }
+        }
+        confirmation.addView(
+            cancelButton,
+            LinearLayout.LayoutParams(dp(78), ViewGroup.LayoutParams.MATCH_PARENT).apply {
+                marginEnd = dp(5)
+            },
+        )
+        confirmation.addView(
+            confirmButton,
+            LinearLayout.LayoutParams(dp(68), ViewGroup.LayoutParams.MATCH_PARENT),
+        )
+        clearButton.setOnClickListener { flip(clearButton, confirmation) }
+        container.addView(
+            clearButton,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        container.addView(
+            confirmation,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        return container
     }
 
     private fun privacySection(): View = LinearLayout(this).apply {

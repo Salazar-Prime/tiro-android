@@ -105,6 +105,10 @@ The app uses Kotlin and Android platform APIs: `AccessibilityService`, `Accessib
 
 Release preparation is documented in [APP_PUBLISH.md](APP_PUBLISH.md).
 
+## Acknowledgements
+
+The Tiro wordmark uses Dancing Script under the [SIL Open Font License 1.1](docs/licenses/DancingScript-OFL.txt).
+
 ## License
 
 No license has been selected yet. The repository is public, but public visibility alone does not grant reuse or redistribution rights.

@@ -4,6 +4,7 @@
     <string name="release_delay">Release delay</string>
     <string name="milliseconds_abbreviation">ms</string>
     <string name="integer_value">%1$d</string>
+    <string name="are_you_sure">Are you sure?</string>
     <string name="accessibility_service_name">Tiro floating voice control</string>
     <string name="accessibility_service_description">Shows the Tiro voice button when an editable field is focused and inserts your completed transcript at the cursor.</string>
     <string name="accessibility_service_summary">Voice typing beside your regular keyboard</string>
