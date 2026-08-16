@@ -43,12 +43,12 @@ The Accessibility Service is required to detect focused editable fields, show th
 
 | Gesture | Result |
 | --- | --- |
-| Press and hold without moving | Recording begins after a brief gesture check; release to transcribe and insert |
-| Quick tap | Start hands-free recording; tap the logo again to transcribe and insert |
+| Press and hold without moving | Recording begins after a brief gesture check; release adds a short audio tail, then transcribes and inserts |
+| Quick tap | Start hands-free recording; tap the logo again to capture the short audio tail, then transcribe and insert |
 | Drag before recording starts | Move the control without starting a new recording; Tiro remembers its position across apps |
 | Drag while recording | Move the control while the microphone keeps listening; release a held recording normally |
 
-The button is a non-focusable Android accessibility overlay. It waits briefly to distinguish a still hold from a drag. Moving past the drag threshold before voice capture begins selects relocation without starting the microphone. Once voice capture is active, dragging changes only the button position and recording continues. The button uses Tiro's rounded-square app-icon shape rather than Android's device-dependent launcher mask. It does not replace, dismiss, or switch your keyboard. Its outline changes from aqua to coral while the microphone is active. Android's speech service may still end a hands-free session after silence.
+The button is a non-focusable Android accessibility overlay. It waits briefly to distinguish a still hold from a drag. Moving past the drag threshold before voice capture begins selects relocation without starting the microphone. Once voice capture is active, dragging changes only the button position and recording continues. After a normal release or stop tap, Tiro keeps listening for 450 milliseconds so the system recognizer can receive the final word before transcription begins. The button uses Tiro's rounded-square app-icon shape rather than Android's device-dependent launcher mask. It does not replace, dismiss, or switch your keyboard. Its outline changes from aqua to coral while the microphone is active. Android's speech service may still end a hands-free session after silence.
 
 Tiro does not request Android's generic **Display over other apps** permission. The floating button uses `TYPE_ACCESSIBILITY_OVERLAY` and is available only while Tiro's Accessibility Service is enabled.
 
@@ -70,7 +70,7 @@ The first command is the verified build, unit-test, and lint path. The resulting
 ## Privacy
 
 - Focus detection begins after you grant in-app consent and enable **Tiro floating voice control**. The service looks for the currently focused editable node so it can decide whether to show the button. It ignores password fields.
-- Microphone access begins when you touch the Tiro logo. It stops when you release after a hold, tap again after a quick tap, Android ends the speech session, focus leaves the editable field, recognition fails, or the Accessibility Service stops.
+- Microphone access begins after a still hold passes the brief gesture check or after a quick tap. Following a normal release or hands-free stop tap, Tiro keeps the microphone session active for 450 milliseconds to capture the end of the final word. It stops sooner if Android ends the speech session, focus leaves the editable field, recognition fails, or the Accessibility Service stops.
 - Tiro creates Android's on-device `SpeechRecognizer`. Microphone input is handled by that local system speech service and recognized text is returned to Tiro. Tiro does not create or retain audio files on success, failure, cancellation, or focus changes.
 - Tiro has no `INTERNET` permission and never creates Android's normal potentially network-backed recognizer.
 - If you tap **Prepare offline language**, Android's system speech component—not Tiro—may contact its provider to download or update the English language pack. The provider and its policies depend on the device.

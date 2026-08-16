@@ -35,6 +35,10 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
+    private companion object {
+        const val RELEASE_TAIL_MILLIS = 450L
+    }
+
     private enum class RecognitionState {
         IDLE,
         PREPARING,
@@ -59,6 +63,7 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
     private var recognitionState = RecognitionState.IDLE
     private var refreshRunnable: Runnable? = null
     private var resultResetRunnable: Runnable? = null
+    private var finishRecognitionRunnable: Runnable? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -101,6 +106,7 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
     override fun onDestroy() {
         refreshRunnable?.let(handler::removeCallbacks)
         resultResetRunnable?.let(handler::removeCallbacks)
+        clearPendingRecognitionFinish()
         overlaySettingsStore.unregisterListener(settingsListener)
         hideOverlay()
         super.onDestroy()
@@ -336,9 +342,18 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         ) {
             return
         }
-        recognitionState = RecognitionState.TRANSCRIBING
-        updateOverlayVisual()
-        recognizer?.stopListening()
+        if (finishRecognitionRunnable != null) return
+
+        finishRecognitionRunnable = Runnable {
+            finishRecognitionRunnable = null
+            if (recognitionState == RecognitionState.PREPARING ||
+                recognitionState == RecognitionState.LISTENING
+            ) {
+                recognitionState = RecognitionState.TRANSCRIBING
+                updateOverlayVisual()
+                recognizer?.stopListening()
+            }
+        }.also { handler.postDelayed(it, RELEASE_TAIL_MILLIS) }
     }
 
     private fun cancelRecognition() {
@@ -351,8 +366,14 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
     }
 
     private fun destroyRecognizer() {
+        clearPendingRecognitionFinish()
         recognizer?.destroy()
         recognizer = null
+    }
+
+    private fun clearPendingRecognitionFinish() {
+        finishRecognitionRunnable?.let(handler::removeCallbacks)
+        finishRecognitionRunnable = null
     }
 
     private fun completeRecognition(rawTranscript: String?) {
@@ -457,6 +478,7 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
     override fun onBufferReceived(buffer: ByteArray?) = Unit
 
     override fun onEndOfSpeech() {
+        clearPendingRecognitionFinish()
         recognitionState = RecognitionState.TRANSCRIBING
         gestureMachine.reset()
         updateOverlayVisual()
