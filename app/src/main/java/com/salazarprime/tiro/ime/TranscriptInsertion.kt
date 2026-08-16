@@ -31,5 +31,34 @@ internal object TranscriptInsertion {
         return Replacement(text = updated, caret = lower + insertion.length)
     }
 
+    fun replaceAccessibilityText(
+        rawTranscript: String,
+        exposedText: String,
+        hintText: String?,
+        isShowingHintText: Boolean,
+        selectionStart: Int,
+        selectionEnd: Int,
+    ): Replacement? {
+        val providerExposesOnlyHint =
+            selectionStart < 0 &&
+                selectionEnd < 0 &&
+                !hintText.isNullOrEmpty() &&
+                exposedText == hintText
+        val currentText = if (isShowingHintText || providerExposesOnlyHint) {
+            ""
+        } else {
+            exposedText
+        }
+        val start = selectionStart.takeIf { it >= 0 } ?: currentText.length
+        val end = selectionEnd.takeIf { it >= 0 } ?: start
+
+        return replaceSelection(
+            rawTranscript = rawTranscript,
+            currentText = currentText,
+            selectionStart = start,
+            selectionEnd = end,
+        )
+    }
+
     private val NO_LEADING_SPACE_BEFORE = setOf('.', ',', '!', '?', ':', ';', ')', ']', '}')
 }

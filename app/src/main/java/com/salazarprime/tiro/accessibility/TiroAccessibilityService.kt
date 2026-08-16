@@ -278,14 +278,13 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
 
     private fun insertIntoFocusedField(transcript: String): Boolean {
         val node = findFocusedEditableNode() ?: return false
-        val currentText = node.text?.toString().orEmpty()
-        val start = node.textSelectionStart.takeIf { it >= 0 } ?: currentText.length
-        val end = node.textSelectionEnd.takeIf { it >= 0 } ?: start
-        val replacement = TranscriptInsertion.replaceSelection(
+        val replacement = TranscriptInsertion.replaceAccessibilityText(
             rawTranscript = transcript,
-            currentText = currentText,
-            selectionStart = start,
-            selectionEnd = end,
+            exposedText = node.text?.toString().orEmpty(),
+            hintText = node.hintText?.toString(),
+            isShowingHintText = node.isShowingHintText,
+            selectionStart = node.textSelectionStart,
+            selectionEnd = node.textSelectionEnd,
         ) ?: return false
 
         val textArguments = Bundle().apply {

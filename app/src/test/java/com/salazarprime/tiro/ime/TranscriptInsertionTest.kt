@@ -44,4 +44,49 @@ class TranscriptInsertionTest {
             TranscriptInsertion.replaceSelection("again", "Hello", 99, 99),
         )
     }
+
+    @Test
+    fun ignoresADisplayedHintWhenInsertingIntoAnEmptyField() {
+        assertEquals(
+            TranscriptInsertion.Replacement("Hello", 5),
+            TranscriptInsertion.replaceAccessibilityText(
+                rawTranscript = "Hello",
+                exposedText = "Tap here to type",
+                hintText = "Tap here to type",
+                isShowingHintText = true,
+                selectionStart = 0,
+                selectionEnd = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun ignoresHintTextFromAProviderWithNoSelectionMetadata() {
+        assertEquals(
+            TranscriptInsertion.Replacement("Hello", 5),
+            TranscriptInsertion.replaceAccessibilityText(
+                rawTranscript = "Hello",
+                exposedText = "Write a message",
+                hintText = "Write a message",
+                isShowingHintText = false,
+                selectionStart = -1,
+                selectionEnd = -1,
+            ),
+        )
+    }
+
+    @Test
+    fun preservesRealTextEvenWhenItMatchesTheFieldHint() {
+        assertEquals(
+            TranscriptInsertion.Replacement("Tap here to type Hello", 22),
+            TranscriptInsertion.replaceAccessibilityText(
+                rawTranscript = "Hello",
+                exposedText = "Tap here to type",
+                hintText = "Tap here to type",
+                isShowingHintText = false,
+                selectionStart = 16,
+                selectionEnd = 16,
+            ),
+        )
+    }
 }
