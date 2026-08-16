@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="tiro_canvas">#10151C</color>
+    <color name="tiro_surface">#181F29</color>
+    <color name="tiro_field">#0B0F15</color>
+    <color name="tiro_ink">#F2F6FA</color>
+    <color name="tiro_stroke">#2E3948</color>
+    <color name="tiro_coral">#FF7569</color>
+    <color name="tiro_aqua">#70D5D1</color>
+    <color name="tiro_deep_green">#0E2F28</color>
+    <color name="tiro_amber">#F0B845</color>
+    <color name="icon_background">#0E2F28</color>
+</resources>
+

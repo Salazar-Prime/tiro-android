@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tiro</string>
+    <string name="ime_name">Tiro voice keyboard</string>
+    <string name="ime_subtype_name">Tiro English voice typing</string>
+    <string name="hero_title">Speak where\nyour cursor is.</string>
+    <string name="overlay_mode">TIRO · ON DEVICE</string>
+    <string name="overlay_ready">Hold MIC to speak</string>
+    <string name="overlay_mic">MIC</string>
+</resources>
