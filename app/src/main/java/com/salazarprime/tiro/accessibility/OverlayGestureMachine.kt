@@ -1,7 +1,7 @@
 package com.salazarprime.tiro.accessibility
 
 internal class OverlayGestureMachine(
-    private val tapThresholdMillis: Long = 260,
+    private val tapThresholdMillis: Long = DEFAULT_TAP_THRESHOLD_MILLIS,
 ) {
     enum class Action {
         BEGIN_RECORDING,
@@ -65,5 +65,8 @@ internal class OverlayGestureMachine(
     fun reset() {
         state = State.Idle
     }
-}
 
+    companion object {
+        const val DEFAULT_TAP_THRESHOLD_MILLIS = 260L
+    }
+}

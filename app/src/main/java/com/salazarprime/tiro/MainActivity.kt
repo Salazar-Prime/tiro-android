@@ -373,7 +373,7 @@ class MainActivity : Activity() {
                                     addView(spacer(5))
                                     addView(
                                         bodyText(
-                                            "Drag it around the screen. Tiro remembers where you leave it.",
+                                            "Drag to move; a still hold records. Tiro remembers where you leave it.",
                                             13f,
                                         ),
                                     )

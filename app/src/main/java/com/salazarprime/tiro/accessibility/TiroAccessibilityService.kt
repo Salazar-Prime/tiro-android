@@ -150,7 +150,7 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
                 handleGestureActions(gestureMachine.release(eventTime))
             }
             created.onCancel = {
-                handleGestureActions(gestureMachine.cancel())
+                cancelRecognition()
             }
             created.onDragStart = {
                 cancelRecognition()
@@ -509,8 +509,18 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
     private var resultColor: Int? = null
     private var touchDownX = 0f
     private var touchDownY = 0f
-    private var dragging = false
-    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var touchDownTime = 0L
+    private val touchArbiter = OverlayTouchArbiter()
+    private val dragThreshold = maxOf(
+        ViewConfiguration.get(context).scaledTouchSlop * 2f,
+        context.dp(14).toFloat(),
+    )
+    private val holdRunnable = Runnable {
+        dispatchTouchActions(
+            actions = touchArbiter.holdTimeout(),
+            eventTime = SystemClock.uptimeMillis(),
+        )
+    }
 
     init {
         setImageResource(R.drawable.ic_tiro_overlay_foreground)
@@ -528,44 +538,66 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
             MotionEvent.ACTION_DOWN -> {
                 touchDownX = event.rawX
                 touchDownY = event.rawY
-                dragging = false
+                touchDownTime = event.eventTime
+                touchArbiter.down()
                 isPressed = true
-                onPress(event.eventTime)
+                removeCallbacks(holdRunnable)
+                postDelayed(
+                    holdRunnable,
+                    OverlayGestureMachine.DEFAULT_TAP_THRESHOLD_MILLIS,
+                )
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
                 val deltaX = event.rawX - touchDownX
                 val deltaY = event.rawY - touchDownY
-                if (!dragging && hypot(deltaX, deltaY) > touchSlop) {
-                    dragging = true
-                    isPressed = false
-                    onDragStart()
+                val actions = touchArbiter.move(
+                    beyondDragThreshold = hypot(deltaX, deltaY) > dragThreshold,
+                )
+                if (OverlayTouchArbiter.Action.START_DRAG in actions) {
+                    removeCallbacks(holdRunnable)
                 }
-                if (dragging) onDragMove(deltaX, deltaY)
+                dispatchTouchActions(actions, event.eventTime)
+                if (touchArbiter.isDragging) onDragMove(deltaX, deltaY)
                 return true
             }
             MotionEvent.ACTION_UP -> {
+                removeCallbacks(holdRunnable)
                 isPressed = false
-                if (dragging) {
-                    dragging = false
-                    onDragEnd()
-                } else {
-                    onRelease(event.eventTime)
-                }
+                dispatchTouchActions(touchArbiter.up(), event.eventTime)
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(holdRunnable)
                 isPressed = false
-                if (dragging) {
-                    dragging = false
-                    onDragEnd()
-                } else {
-                    onCancel()
-                }
+                dispatchTouchActions(touchArbiter.cancel(), event.eventTime)
                 return true
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    private fun dispatchTouchActions(
+        actions: List<OverlayTouchArbiter.Action>,
+        eventTime: Long,
+    ) {
+        actions.forEach { action ->
+            when (action) {
+                OverlayTouchArbiter.Action.START_VOICE_GESTURE -> onPress(touchDownTime)
+                OverlayTouchArbiter.Action.RELEASE_VOICE_GESTURE -> onRelease(eventTime)
+                OverlayTouchArbiter.Action.CANCEL_VOICE_GESTURE -> onCancel()
+                OverlayTouchArbiter.Action.START_DRAG -> {
+                    isPressed = false
+                    onDragStart()
+                }
+                OverlayTouchArbiter.Action.END_DRAG -> onDragEnd()
+            }
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(holdRunnable)
+        super.onDetachedFromWindow()
     }
 
     override fun performClick(): Boolean {

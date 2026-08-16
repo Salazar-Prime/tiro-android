@@ -43,11 +43,11 @@ The Accessibility Service is required to detect focused editable fields, show th
 
 | Gesture | Result |
 | --- | --- |
-| Press and hold | Recording begins on touch-down; release to transcribe and insert |
+| Press and hold without moving | Recording begins after a brief gesture check; release to transcribe and insert |
 | Quick tap | Start hands-free recording; tap the logo again to transcribe and insert |
-| Drag | Move the control; Tiro remembers its position across apps |
+| Drag | Move the control without inserting a transcript; Tiro remembers its position across apps |
 
-The button is a non-focusable Android accessibility overlay. It uses Tiro's rounded-square app-icon shape rather than Android's device-dependent launcher mask. It does not replace, dismiss, or switch your keyboard. Its outline changes from aqua to coral while the microphone is active. Android's speech service may still end a hands-free session after silence.
+The button is a non-focusable Android accessibility overlay. It waits briefly to distinguish a still hold from a drag. Moving past the drag threshold selects relocation; if voice capture has already begun, Tiro cancels it and discards the result. The button uses Tiro's rounded-square app-icon shape rather than Android's device-dependent launcher mask. It does not replace, dismiss, or switch your keyboard. Its outline changes from aqua to coral while the microphone is active. Android's speech service may still end a hands-free session after silence.
 
 Tiro does not request Android's generic **Display over other apps** permission. The floating button uses `TYPE_ACCESSIBILITY_OVERLAY` and is available only while Tiro's Accessibility Service is enabled.
 
