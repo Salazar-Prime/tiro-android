@@ -2,6 +2,7 @@ package com.salazarprime.tiro
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -37,6 +38,8 @@ import com.salazarprime.tiro.accessibility.OverlaySettingsStore
 import com.salazarprime.tiro.accessibility.TiroAccessibilityService
 import com.salazarprime.tiro.history.TranscriptHistoryStore
 import com.salazarprime.tiro.recognition.RecognitionRequest
+import com.salazarprime.tiro.recognition.SpeechLanguage
+import com.salazarprime.tiro.recognition.SpeechLanguages
 import com.salazarprime.tiro.ui.TiroPalette
 import com.salazarprime.tiro.ui.TiroWritingView
 import com.salazarprime.tiro.ui.actionButton
@@ -130,20 +133,8 @@ class MainActivity : Activity() {
     }
 
     private fun hero(): View = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.CENTER_VERTICAL
-        minimumHeight = dp(82)
-        addView(
-            ImageView(this@MainActivity).apply {
-                setImageResource(R.drawable.ic_tiro_overlay_foreground)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                setPadding(dp(3), dp(3), dp(3), dp(3))
-                elevation = dp(10).toFloat()
-                background = this@MainActivity.glassBackground(dp(16).toFloat())
-            },
-            LinearLayout.LayoutParams(dp(66), dp(66)),
-        )
+        gravity = Gravity.CENTER
+        minimumHeight = dp(106)
         val animateWordmark = !hasAnimatedWordmark
         hasAnimatedWordmark = true
         addView(
@@ -155,13 +146,7 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-            ).apply {
-                marginStart = dp(16)
-            },
-        )
-        addView(
-            View(this@MainActivity),
-            LinearLayout.LayoutParams(0, 1, 1f),
+            ),
         )
     }
 
@@ -171,10 +156,11 @@ class MainActivity : Activity() {
         val accessibilityEnabled = isAccessibilityServiceEnabled()
         val consentGranted = OverlayConsent.isGranted(this)
         val recognizerAvailable = SpeechRecognizer.isOnDeviceRecognitionAvailable(this)
+        val selectedLanguage = SpeechLanguages.resolve(overlaySettingsStore.load().languageTag)
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(sectionTitle("Access"))
+            addView(sectionTitle("System Permissions"))
             addView(spacer(12))
             addView(
                 card().apply {
@@ -195,17 +181,10 @@ class MainActivity : Activity() {
                     addView(
                         settingActionRow(
                             title = "Offline speech",
-                            status = if (recognizerAvailable) "Available" else "Unavailable",
+                            status = selectedLanguage.label,
                             ready = recognizerAvailable,
-                            action = if (
-                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                                recognizerAvailable
-                            ) {
-                                "Prepare"
-                            } else {
-                                null
-                            },
-                        ) { requestLanguageModel() },
+                            action = "Set language",
+                        ) { showLanguagePicker() },
                     )
                     addView(divider())
                     if (consentGranted) {
@@ -279,8 +258,6 @@ class MainActivity : Activity() {
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(sectionTitle("Floating control"))
-            addView(spacer(12))
             addView(
                 card().apply {
                     val preview = ImageView(this@MainActivity).apply {
@@ -314,15 +291,15 @@ class MainActivity : Activity() {
                     addView(
                         sliderSetting(
                             title = "Icon size",
-                            initialValue = "${settings.sizeDp} dp",
-                            minimum = OverlaySettingsStore.MIN_SIZE_DP,
-                            maximum = OverlaySettingsStore.MAX_SIZE_DP,
-                            progress = settings.sizeDp,
+                            initialValue = "${settings.sizePercent}%",
+                            minimum = OverlaySettingsStore.MIN_SIZE_PERCENT,
+                            maximum = OverlaySettingsStore.MAX_SIZE_PERCENT,
+                            progress = settings.sizePercent,
                         ) { value ->
-                            previewSizeDp = value
-                            overlaySettingsStore.setSizeDp(value)
+                            previewSizeDp = OverlaySettingsStore.sizePercentToDp(value)
+                            overlaySettingsStore.setSizePercent(value)
                             updatePreview()
-                            "$value dp"
+                            "$value%"
                         },
                     )
                     addView(divider())
@@ -342,15 +319,6 @@ class MainActivity : Activity() {
                     )
                     addView(divider())
                     addView(releaseDelaySetting(settings.releaseDelayMillis))
-                    addView(spacer(8))
-                    addView(
-                        smallButton("Reset position", "Reset floating control position").apply {
-                            setOnClickListener {
-                                overlaySettingsStore.resetPosition()
-                                toast("Floating control position reset.")
-                            }
-                        },
-                    )
                 },
             )
         }
@@ -421,74 +389,95 @@ class MainActivity : Activity() {
 
     private fun releaseDelaySetting(initialValue: Int): View =
         LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(54)
+            orientation = LinearLayout.VERTICAL
             addView(
-                TextView(this@MainActivity).apply {
-                    text = getString(R.string.release_delay)
-                    setTextColor(palette.ink)
-                    textSize = 14f
-                    typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
-                },
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
-
-            val valueField = EditText(this@MainActivity).apply {
-                setText(getString(R.string.integer_value, initialValue))
-                setTextColor(palette.ink)
-                textSize = 14f
-                gravity = Gravity.CENTER
-                inputType = InputType.TYPE_CLASS_NUMBER
-                imeOptions = EditorInfo.IME_ACTION_DONE
-                isSingleLine = true
-                setSelectAllOnFocus(true)
-                setPadding(dp(10), 0, dp(10), 0)
-                background = roundedBackground(
-                    fill = palette.field,
-                    radius = dp(12).toFloat(),
-                    strokeColor = palette.stroke,
-                    strokeWidth = dp(1),
-                )
-                contentDescription = "Release delay in milliseconds"
-            }
-
-            fun commitValue() {
-                val value = valueField.text.toString().toIntOrNull()
-                    ?.coerceIn(
-                        OverlaySettingsStore.MIN_RELEASE_DELAY_MILLIS,
-                        OverlaySettingsStore.MAX_RELEASE_DELAY_MILLIS,
+                LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    minimumHeight = dp(54)
+                    addView(
+                        TextView(this@MainActivity).apply {
+                            text = getString(R.string.release_delay)
+                            setTextColor(palette.ink)
+                            textSize = 14f
+                            typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
+                        },
+                        LinearLayout.LayoutParams(
+                            0,
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                            1f,
+                        ),
                     )
-                    ?: OverlaySettingsStore.DEFAULT_RELEASE_DELAY_MILLIS
-                overlaySettingsStore.setReleaseDelayMillis(value)
-                val normalizedValue = getString(R.string.integer_value, value)
-                if (valueField.text.toString() != normalizedValue) {
-                    valueField.setText(normalizedValue)
-                    valueField.setSelection(valueField.text.length)
-                }
-            }
 
-            valueField.setOnFocusChangeListener { _, hasFocus ->
-                if (!hasFocus) commitValue()
-            }
-            valueField.setOnEditorActionListener { _, actionId, _ ->
-                if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    commitValue()
-                    valueField.clearFocus()
-                    true
-                } else {
-                    false
-                }
-            }
-            addView(valueField, LinearLayout.LayoutParams(dp(86), dp(48)))
-            addView(
-                TextView(this@MainActivity).apply {
-                    text = getString(R.string.milliseconds_abbreviation)
-                    setTextColor(palette.ink.withAlpha(0.58f))
-                    textSize = 12f
-                    typeface = Typeface.MONOSPACE
-                    setPadding(dp(8), 0, 0, 0)
+                    val valueField = EditText(this@MainActivity).apply {
+                        setText(getString(R.string.integer_value, initialValue))
+                        setTextColor(palette.ink)
+                        textSize = 14f
+                        gravity = Gravity.CENTER
+                        inputType = InputType.TYPE_CLASS_NUMBER
+                        imeOptions = EditorInfo.IME_ACTION_DONE
+                        isSingleLine = true
+                        setSelectAllOnFocus(true)
+                        setPadding(dp(10), 0, dp(10), 0)
+                        background = roundedBackground(
+                            fill = palette.field,
+                            radius = dp(12).toFloat(),
+                            strokeColor = palette.stroke,
+                            strokeWidth = dp(1),
+                        )
+                        contentDescription = "Release delay in milliseconds"
+                    }
+
+                    fun commitValue() {
+                        val value = valueField.text.toString().toIntOrNull()
+                            ?.coerceIn(
+                                OverlaySettingsStore.MIN_RELEASE_DELAY_MILLIS,
+                                OverlaySettingsStore.MAX_RELEASE_DELAY_MILLIS,
+                            )
+                            ?: OverlaySettingsStore.DEFAULT_RELEASE_DELAY_MILLIS
+                        overlaySettingsStore.setReleaseDelayMillis(value)
+                        val normalizedValue = getString(R.string.integer_value, value)
+                        if (valueField.text.toString() != normalizedValue) {
+                            valueField.setText(normalizedValue)
+                            valueField.setSelection(valueField.text.length)
+                        }
+                    }
+
+                    valueField.setOnFocusChangeListener { _, hasFocus ->
+                        if (!hasFocus) commitValue()
+                    }
+                    valueField.setOnEditorActionListener { _, actionId, _ ->
+                        if (actionId == EditorInfo.IME_ACTION_DONE) {
+                            commitValue()
+                            valueField.clearFocus()
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    addView(valueField, LinearLayout.LayoutParams(dp(86), dp(48)))
+                    addView(
+                        TextView(this@MainActivity).apply {
+                            text = getString(R.string.milliseconds_abbreviation)
+                            setTextColor(palette.ink.withAlpha(0.58f))
+                            textSize = 12f
+                            typeface = Typeface.MONOSPACE
+                            setPadding(dp(8), 0, 0, 0)
+                        },
+                    )
                 },
+                matchWidth(),
+            )
+            addView(
+                bodyText(
+                    "Keeps listening after release so the last word is not cut off.",
+                    12f,
+                ).apply {
+                    gravity = Gravity.CENTER
+                    textAlignment = View.TEXT_ALIGNMENT_CENTER
+                    setPadding(dp(10), dp(5), dp(10), 0)
+                },
+                matchWidth(),
             )
         }
 
@@ -496,12 +485,18 @@ class MainActivity : Activity() {
         val transcripts = historyStore.all()
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(sectionTitle("Local history"))
+            addView(sectionTitle("Voice History"))
             addView(spacer(12))
             addView(
                 card().apply {
                     if (transcripts.isEmpty()) {
-                        addView(bodyText("Empty", 14f))
+                        addView(
+                            bodyText("Empty", 14f).apply {
+                                gravity = Gravity.CENTER
+                                textAlignment = View.TEXT_ALIGNMENT_CENTER
+                            },
+                            matchWidth(),
+                        )
                     } else {
                         transcripts.take(5).forEachIndexed { index, transcript ->
                             val row = LinearLayout(this@MainActivity).apply {
@@ -628,60 +623,105 @@ class MainActivity : Activity() {
         return container
     }
 
-    private fun privacySection(): View = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        addView(sectionTitle("Privacy"))
-        addView(spacer(12))
-        addView(
-            card().apply {
-                addView(
-                    bodyText(
-                        "Android’s built-in speech recognition service is used.\n" +
-                            "No data is sent to the app creator.",
-                        14f,
-                    ),
-                )
-            },
-        )
+    private fun privacySection(): View {
+        val appEnabled = overlaySettingsStore.load().appEnabled
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(sectionTitle("Privacy"))
+            addView(spacer(12))
+            addView(
+                card().apply {
+                    addView(
+                        settingActionRow(
+                            title = "Tiro",
+                            status = if (appEnabled) "Enabled" else "Disabled",
+                            ready = appEnabled,
+                            action = if (appEnabled) "Disable" else "Enable",
+                        ) {
+                            overlaySettingsStore.setAppEnabled(!appEnabled)
+                            render()
+                        },
+                    )
+                    addView(divider())
+                    addView(
+                        bodyText(
+                            "Android’s built-in speech recognition service is used.\n" +
+                                "No data is sent to the app creator.",
+                            14f,
+                        ).apply {
+                            gravity = Gravity.CENTER
+                            textAlignment = View.TEXT_ALIGNMENT_CENTER
+                        },
+                        matchWidth(),
+                    )
+                },
+            )
+        }
     }
 
-    private fun requestLanguageModel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    private fun showLanguagePicker() {
+        val settings = overlaySettingsStore.load()
+        val options = SpeechLanguages.options
+        val selectedIndex = options.indexOfFirst { language ->
+            language.tag.equals(settings.languageTag, ignoreCase = true)
+        }.coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle("Set language")
+            .setSingleChoiceItems(
+                options.map { language -> language.label }.toTypedArray(),
+                selectedIndex,
+            ) { dialog, index ->
+                val language = options[index]
+                overlaySettingsStore.setLanguageTag(language.tag)
+                dialog.dismiss()
+                render()
+                requestLanguageModel(language)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun requestLanguageModel(language: SpeechLanguage) {
         if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
             toast("This device does not provide on-device recognition.")
             return
         }
 
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            toast("${language.label} selected.")
+            return
+        }
+
         val recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(this)
-        val request = RecognitionRequest.create()
+        val request = RecognitionRequest.create(language.tag)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             recognizer.triggerModelDownload(
                 request,
                 mainExecutor,
                 object : ModelDownloadListener {
                     override fun onProgress(completedPercent: Int) {
-                        toast("Offline language: $completedPercent%")
+                        toast("${language.label}: $completedPercent%")
                     }
 
                     override fun onSuccess() {
-                        toast("Offline language is ready.")
+                        toast("${language.label} is ready.")
                         recognizer.destroy()
                     }
 
                     override fun onScheduled() {
-                        toast("Android scheduled the language download.")
+                        toast("Android scheduled ${language.label}.")
                         recognizer.destroy()
                     }
 
                     override fun onError(error: Int) {
-                        toast("Android could not prepare this language.")
+                        toast("Android could not prepare ${language.label}.")
                         recognizer.destroy()
                     }
                 },
             )
         } else {
             recognizer.triggerModelDownload(request)
-            toast("Android started the language-model request.")
+            toast("Android started preparing ${language.label}.")
             mainHandler.postDelayed({ recognizer.destroy() }, 1_500)
         }
     }
@@ -710,6 +750,8 @@ class MainActivity : Activity() {
         textSize = 21f
         typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
         letterSpacing = -0.018f
+        gravity = Gravity.CENTER
+        textAlignment = View.TEXT_ALIGNMENT_CENTER
     }
 
     private fun settingActionRow(

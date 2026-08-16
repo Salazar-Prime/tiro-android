@@ -23,7 +23,7 @@ You need:
 
 - Android 12 or newer.
 - A device that provides Android's on-device speech-recognition service.
-- The English (US) offline language pack supplied by that service.
+- An offline English language pack supplied by that service. British English is Tiro's default.
 - **Microphone** permission.
 - Tiro's **Accessibility Service** enabled after reviewing and accepting the in-app focused-field disclosure.
 
@@ -36,8 +36,8 @@ The Accessibility Service is required to detect focused editable fields, show th
 1. Open Tiro and allow **Microphone** access.
 2. Read the **Focused-field access** disclosure, select the consent checkbox, and tap **Continue to Accessibility settings**.
 3. Enable **Tiro floating voice control** in Android's Accessibility settings.
-4. If requested, tap **Prepare offline language**. Android's system speech component manages that download.
-5. Optionally adjust **Icon size**, **Opacity**, and the numeric **Release delay** under **Floating control**.
+4. Under **System Permissions**, tap **Set language** to choose an English variant. Android's system speech component manages any required offline-model download.
+5. Optionally adjust **Icon size** from 1–100%, **Opacity**, and the numeric **Release delay** on the main screen.
 6. Keep your preferred keyboard selected and focus an editable, non-password text field in any app.
 7. Use the single floating Tiro logo:
 
@@ -73,9 +73,9 @@ The first command is the verified build, unit-test, and lint path. The resulting
 - Microphone access begins after a still hold passes the brief gesture check or after a quick tap. Following a normal release or hands-free stop tap, Tiro keeps the microphone session active for the configured 0–2,000 millisecond release delay to capture the end of the final word. It stops sooner if Android ends the speech session, focus leaves the editable field, recognition fails, or the Accessibility Service stops.
 - Tiro creates Android's on-device `SpeechRecognizer`. Microphone input is handled by that local system speech service and recognized text is returned to Tiro. Tiro does not create or retain audio files on success, failure, cancellation, or focus changes.
 - Tiro has no `INTERNET` permission and never creates Android's normal potentially network-backed recognizer.
-- If you tap **Prepare offline language**, Android's system speech component—not Tiro—may contact its provider to download or update the English language pack. The provider and its policies depend on the device.
+- When you choose an English variant with **Set language**, Android's system speech component—not Tiro—may contact its provider to download or update that offline language pack. The provider and its policies depend on the device.
 - When inserting a transcript, Tiro temporarily reads the focused field's current text and selection so it can replace the selection without erasing surrounding text. It then uses Android accessibility text and selection actions. Tiro does not save or share the field text it reads.
-- Icon size, opacity, release delay, and the normalized screen position remain in Tiro's private app preferences. Use **Reset position**, clear Tiro's app data, or uninstall Tiro to remove these settings.
+- Tiro's enabled state, selected language, icon size, opacity, release delay, and normalized screen position remain in Tiro's private app preferences. Clear Tiro's app data or uninstall Tiro to remove these settings. Disabling Tiro in **Privacy** immediately pauses the floating control without changing Android's Accessibility Service permission.
 - Up to 25 completed transcripts remain in Tiro's private app preferences. Delete individual entries, use **Clear history**, clear Tiro's app data, or uninstall Tiro to remove them. App backup and device-transfer rules exclude this history.
 - No service credential or account is required or stored.
 - Tiro does not send analytics, telemetry, crash reports, or application logs. Android and the installed system speech service may produce their own operational diagnostics.
@@ -84,7 +84,7 @@ The first command is the verified build, unit-test, and lint path. The resulting
 
 ## Current scope and limitations
 
-- English (US) recognition only in this preview.
+- British, American, Australian, Canadian, and Indian English are selectable in this preview; British English is the default.
 - On-device service and language support depend on the Android build and device vendor.
 - Android controls speech endpoint detection, so recording can stop after a pause, including in hands-free mode.
 - Tiro deliberately does not appear for password fields.

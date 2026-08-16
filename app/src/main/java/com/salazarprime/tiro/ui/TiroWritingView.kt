@@ -49,7 +49,7 @@ internal class TiroWritingView(
         style = Paint.Style.FILL
         textSize = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
-            54f,
+            62f,
             resources.displayMetrics,
         )
         typeface = Typeface.create(resources.getFont(R.font.dancing_script), 620, false)
@@ -93,16 +93,18 @@ internal class TiroWritingView(
     }
 
     init {
-        contentDescription = word
+        contentDescription = "$word. Tap to replay the writing animation."
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
-        isFocusable = false
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { replay() }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val rawPath = createRawTextPath()
         val rawBounds = RectF()
         rawPath.computeBounds(rawBounds, true)
-        val desiredWidth = ceil(rawBounds.width() + 40f * density).toInt()
+        val desiredWidth = ceil(rawBounds.width() + 64f * density).toInt()
         val desiredHeight = ceil(rawBounds.height() + 34f * density).toInt()
         setMeasuredDimension(
             resolveSize(desiredWidth, widthMeasureSpec),
@@ -163,6 +165,22 @@ internal class TiroWritingView(
         super.onDetachedFromWindow()
     }
 
+    private fun replay() {
+        removeCallbacks(startWriting)
+        removeCallbacks(blinkCaret)
+        animator?.cancel()
+        animator = null
+        animationConsumed = false
+        animationProgress = 0f
+        caretVisible = false
+        invalidate()
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            postDelayed(startWriting, REPLAY_DELAY_MILLIS)
+        } else {
+            showCompletedWordmark()
+        }
+    }
+
     private fun beginWritingAnimation() {
         if (!isAttachedToWindow || animationConsumed) return
         animationConsumed = true
@@ -211,15 +229,15 @@ internal class TiroWritingView(
         val rawPath = createRawTextPath()
         val rawBounds = RectF()
         rawPath.computeBounds(rawBounds, true)
-        val left = 1.5f * density
         val top = ((height - rawBounds.height()) / 2f + 4f * density)
             .coerceAtLeast(20f * density)
-        val availableWidth = width - 32f * density
+        val availableWidth = width - 64f * density
         val scale = if (rawBounds.width() > availableWidth && availableWidth > 0f) {
             availableWidth / rawBounds.width()
         } else {
             1f
         }
+        val left = (width - rawBounds.width() * scale) / 2f
         val transform = Matrix().apply {
             setScale(scale, scale)
             postTranslate(left - rawBounds.left * scale, top - rawBounds.top * scale)
@@ -361,3 +379,5 @@ internal object TiroWritingTimeline {
 
     fun caretReady(progress: Float): Boolean = progress >= FILL_END
 }
+
+private const val REPLAY_DELAY_MILLIS = 70L

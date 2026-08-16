@@ -28,6 +28,7 @@ import com.salazarprime.tiro.R
 import com.salazarprime.tiro.history.TranscriptHistoryStore
 import com.salazarprime.tiro.ime.TranscriptInsertion
 import com.salazarprime.tiro.recognition.RecognitionRequest
+import com.salazarprime.tiro.recognition.SpeechLanguages
 import com.salazarprime.tiro.ui.dp
 import com.salazarprime.tiro.ui.glassBackground
 import com.salazarprime.tiro.ui.tiroPalette
@@ -48,7 +49,13 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
     private val handler = Handler(Looper.getMainLooper())
     private val gestureMachine = OverlayGestureMachine()
     private val settingsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        applyOverlaySettings()
+        val settings = overlaySettingsStore.load()
+        if (settings.appEnabled) {
+            applyOverlaySettings(settings)
+            if (!overlayAttached) scheduleOverlayRefresh()
+        } else {
+            hideOverlay()
+        }
     }
 
     private var overlayButton: TiroOverlayIcon? = null
@@ -75,11 +82,12 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
             toast("Open Tiro and review focused-field access before using the floating control.")
             return
         }
+        if (!overlaySettingsStore.load().appEnabled) return
         scheduleOverlayRefresh()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (!OverlayConsent.isGranted(this)) {
+        if (!OverlayConsent.isGranted(this) || !overlaySettingsStore.load().appEnabled) {
             hideOverlay()
             return
         }
@@ -112,6 +120,10 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         refreshRunnable?.let(handler::removeCallbacks)
         refreshRunnable = Runnable {
             refreshRunnable = null
+            if (!overlaySettingsStore.load().appEnabled) {
+                hideOverlay()
+                return@Runnable
+            }
             val focused = findFocusedEditableNode()
             if (focused == null) {
                 hideOverlay()
@@ -142,6 +154,7 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         this != null && isFocused && isEditable && isEnabled && !isPassword
 
     private fun showOverlay() {
+        if (!overlaySettingsStore.load().appEnabled) return
         if (overlayAttached) return
         val button = overlayButton ?: TiroOverlayIcon(this).also { created ->
             created.onPress = { eventTime ->
@@ -248,9 +261,10 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         )
     }
 
-    private fun applyOverlaySettings() {
+    private fun applyOverlaySettings(
+        settings: OverlaySettingsStore.Settings = overlaySettingsStore.load(),
+    ) {
         val button = overlayButton ?: return
-        val settings = overlaySettingsStore.load()
         val size = dp(settings.sizeDp)
         button.applyAppearance(sizePx = size, opacity = settings.opacityPercent / 100f)
         if (!overlayAttached) return
@@ -305,6 +319,11 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         resultResetRunnable?.let(handler::removeCallbacks)
         resultResetRunnable = null
 
+        if (!overlaySettingsStore.load().appEnabled) {
+            hideOverlay()
+            return
+        }
+
         if (findFocusedEditableNode() == null) {
             fail("Focus an editable text field.")
             return
@@ -325,7 +344,12 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
             SpeechRecognizer.createOnDeviceSpeechRecognizer(this).also { created ->
                 recognizer = created
                 created.setRecognitionListener(this)
-                created.startListening(RecognitionRequest.create())
+                val language = SpeechLanguages.resolve(
+                    overlaySettingsStore.load().languageTag,
+                )
+                created.startListening(
+                    RecognitionRequest.create(language.tag),
+                )
             }
         }.onFailure {
             fail("On-device speech recognition could not start.")
@@ -482,10 +506,11 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
     }
 
     override fun onError(error: Int) {
+        val language = SpeechLanguages.resolve(overlaySettingsStore.load().languageTag).label
         val message = when (error) {
             SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Allow microphone access in Tiro."
-            SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "English recognition is not supported."
-            SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "Prepare the offline English language."
+            SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "$language is not supported."
+            SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "Set up $language in Tiro."
             SpeechRecognizer.ERROR_NO_MATCH -> "No speech was recognized."
             SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognition is busy. Try again."
             SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech was heard."
