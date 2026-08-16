@@ -14,11 +14,13 @@ import android.os.Looper
 import android.provider.Settings
 import android.speech.ModelDownloadListener
 import android.speech.SpeechRecognizer
+import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -36,7 +38,6 @@ import com.salazarprime.tiro.recognition.RecognitionRequest
 import com.salazarprime.tiro.ui.TiroPalette
 import com.salazarprime.tiro.ui.actionButton
 import com.salazarprime.tiro.ui.dp
-import com.salazarprime.tiro.ui.label
 import com.salazarprime.tiro.ui.rippleBackground
 import com.salazarprime.tiro.ui.roundedBackground
 import com.salazarprime.tiro.ui.tiroPalette
@@ -78,17 +79,15 @@ class MainActivity : Activity() {
             setBackgroundColor(palette.canvas)
         }
         content.addView(hero())
-        content.addView(spacer(28))
-        content.addView(setupSection())
-        content.addView(spacer(24))
+        content.addView(spacer(30))
         content.addView(appearanceSection())
-        content.addView(spacer(24))
-        content.addView(testSection())
-        content.addView(spacer(24))
-        content.addView(historySection())
-        content.addView(spacer(24))
-        content.addView(privacySection())
         content.addView(spacer(28))
+        content.addView(historySection())
+        content.addView(spacer(28))
+        content.addView(accessSection())
+        content.addView(spacer(32))
+        content.addView(privacySection())
+        content.addView(spacer(20))
 
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -103,9 +102,9 @@ class MainActivity : Activity() {
             setOnApplyWindowInsetsListener { view, insets ->
                 val bars = insets.getInsets(WindowInsets.Type.systemBars())
                 view.setPadding(
-                    dp(20) + bars.left,
-                    dp(24) + bars.top,
-                    dp(20) + bars.right,
+                    dp(22) + bars.left,
+                    dp(22) + bars.top,
+                    dp(22) + bars.right,
                     dp(16) + bars.bottom,
                 )
                 insets
@@ -127,60 +126,35 @@ class MainActivity : Activity() {
     }
 
     private fun hero(): View = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-
-        addView(label("Tiro · Android", palette.aqua))
-        addView(spacer(12))
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = dp(82)
         addView(
             TextView(this@MainActivity).apply {
-                text = getString(R.string.hero_title)
+                text = getString(R.string.app_name)
                 setTextColor(palette.ink)
-                textSize = 38f
+                textSize = 44f
                 typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
-                setLineSpacing(0f, 0.96f)
+                letterSpacing = -0.035f
             },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
         )
-        addView(spacer(12))
         addView(
-            bodyText(
-                "A floating voice control for active text fields. " +
-                    "Recognition uses Android’s on-device engine only.",
-                16f,
-            ),
-        )
-        addView(spacer(18))
-        addView(
-            TextView(this@MainActivity).apply {
-                text = if (SpeechRecognizer.isOnDeviceRecognitionAvailable(this@MainActivity)) {
-                    "●  On-device recognition found"
-                } else {
-                    "●  On-device recognition unavailable"
-                }
-                setTextColor(
-                    if (SpeechRecognizer.isOnDeviceRecognitionAvailable(this@MainActivity)) {
-                        palette.aqua
-                    } else {
-                        palette.coral
-                    },
-                )
-                textSize = 12f
-                typeface = Typeface.create("monospace", Typeface.BOLD)
-                setPadding(dp(14), dp(10), dp(14), dp(10))
+            ImageView(this@MainActivity).apply {
+                setImageResource(R.drawable.ic_tiro_overlay_foreground)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                contentDescription = "Tiro"
+                setPadding(dp(3), dp(3), dp(3), dp(3))
                 background = roundedBackground(
-                    fill = palette.surface,
-                    radius = dp(18).toFloat(),
-                    strokeColor = palette.stroke,
-                    strokeWidth = dp(1),
+                    fill = palette.deepGreen,
+                    radius = dp(16).toFloat(),
                 )
             },
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            ),
+            LinearLayout.LayoutParams(dp(70), dp(70)),
         )
     }
 
-    private fun setupSection(): View {
+    private fun accessSection(): View {
         val microphoneGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         val accessibilityEnabled = isAccessibilityServiceEnabled()
@@ -189,135 +163,102 @@ class MainActivity : Activity() {
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(label("Set up · three steps", palette.coral))
-            addView(spacer(10))
+            addView(sectionTitle("Access"))
+            addView(spacer(12))
             addView(
                 card().apply {
-                    addView(statusRow("1", "Microphone", microphoneGranted))
-                    addView(divider())
                     addView(
-                        statusRow(
-                            "2",
-                            "Floating control access",
-                            accessibilityEnabled && consentGranted,
-                        ),
+                        settingActionRow(
+                            title = "Microphone",
+                            status = if (microphoneGranted) "On" else "Off",
+                            ready = microphoneGranted,
+                            action = if (microphoneGranted) null else "Allow",
+                        ) {
+                            requestPermissions(
+                                arrayOf(Manifest.permission.RECORD_AUDIO),
+                                MICROPHONE_REQUEST,
+                            )
+                        },
                     )
                     addView(divider())
-                    addView(statusRow("3", "On-device speech engine", recognizerAvailable))
-                    addView(spacer(14))
-
-                    if (!microphoneGranted) {
-                        addView(
-                            actionButton(
-                                text = "Allow microphone",
-                                fill = palette.coral,
-                                foreground = 0xFFFFFFFF.toInt(),
-                            ).apply {
-                                setOnClickListener {
-                                    requestPermissions(
-                                        arrayOf(Manifest.permission.RECORD_AUDIO),
-                                        MICROPHONE_REQUEST,
-                                    )
-                                }
+                    addView(
+                        settingActionRow(
+                            title = "Offline speech",
+                            status = if (recognizerAvailable) "Available" else "Unavailable",
+                            ready = recognizerAvailable,
+                            action = if (
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                recognizerAvailable
+                            ) {
+                                "Prepare"
+                            } else {
+                                null
                             },
-                            matchWidth(),
+                        ) { requestLanguageModel() },
+                    )
+                    addView(divider())
+                    if (consentGranted) {
+                        addView(
+                            settingActionRow(
+                                title = "Accessibility",
+                                status = if (accessibilityEnabled) "On" else "Off",
+                                ready = accessibilityEnabled,
+                                action = "Manage",
+                            ) {
+                                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            },
                         )
+                    } else {
+                        addView(
+                            TextView(this@MainActivity).apply {
+                                text = getString(R.string.accessibility_disclosure_title)
+                                setTextColor(palette.ink)
+                                textSize = 17f
+                                typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
+                            },
+                        )
+                        addView(spacer(9))
+                        addView(
+                            bodyText(
+                                "Tiro uses Android Accessibility Service to detect focused " +
+                                    "editable fields, show the floating voice button, and insert " +
+                                    "transcripts at the cursor. It reads the focused field text " +
+                                    "and selection only for insertion and does not store or share it.",
+                                13f,
+                            ),
+                        )
+                        addView(spacer(12))
+                        val consent = CheckBox(this@MainActivity).apply {
+                            text = getString(R.string.accessibility_consent)
+                            setTextColor(palette.ink)
+                            textSize = 13f
+                            buttonTintList = ColorStateList.valueOf(palette.coral)
+                            setPadding(0, dp(4), 0, dp(4))
+                        }
+                        addView(consent)
                         addView(spacer(10))
-                    }
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        addView(
-                            actionButton(
-                                text = "Prepare offline language",
-                                fill = palette.field,
-                                foreground = palette.ink,
-                            ).apply {
-                                isEnabled = SpeechRecognizer.isOnDeviceRecognitionAvailable(
-                                    this@MainActivity,
-                                )
-                                alpha = if (isEnabled) 1f else 0.45f
-                                setOnClickListener { requestLanguageModel() }
-                            },
-                            matchWidth(),
-                        )
+                        val enableButton = actionButton(
+                            text = "Continue to Accessibility settings",
+                            fill = palette.ink,
+                            foreground = palette.canvas,
+                        ).apply {
+                            isEnabled = false
+                            alpha = 0.42f
+                            setOnClickListener {
+                                if (!consent.isChecked) return@setOnClickListener
+                                OverlayConsent.grant(this@MainActivity)
+                                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            }
+                        }
+                        consent.setOnCheckedChangeListener { _, checked ->
+                            enableButton.isEnabled = checked
+                            enableButton.alpha = if (checked) 1f else 0.42f
+                        }
+                        addView(enableButton, matchWidth())
                     }
                 },
             )
-            addView(spacer(14))
-            addView(accessibilityDisclosure(accessibilityEnabled, consentGranted))
         }
-    }
-
-    private fun accessibilityDisclosure(
-        accessibilityEnabled: Boolean,
-        consentGranted: Boolean,
-    ): View = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        addView(label("Required accessibility disclosure", palette.coral))
-        addView(spacer(10))
-        addView(
-            card().apply {
-                addView(
-                    TextView(this@MainActivity).apply {
-                        text = getString(R.string.accessibility_disclosure_title)
-                        setTextColor(palette.ink)
-                        textSize = 17f
-                        typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
-                    },
-                )
-                addView(spacer(9))
-                addView(
-                    bodyText(
-                        "Tiro uses Android Accessibility Service to detect when an editable " +
-                            "field is focused, display the Tiro voice button over other apps, " +
-                            "and insert your transcript at that field’s cursor. During insertion, " +
-                            "Tiro reads that focused field’s current text and selection so it can " +
-                            "replace the selection without erasing surrounding text. It does not " +
-                            "collect, store, or share the field text it reads.",
-                        14f,
-                    ),
-                )
-                addView(spacer(12))
-
-                val consent = CheckBox(this@MainActivity).apply {
-                    text = getString(R.string.accessibility_consent)
-                    isChecked = consentGranted
-                    setTextColor(palette.ink)
-                    textSize = 13f
-                    buttonTintList = android.content.res.ColorStateList.valueOf(palette.coral)
-                    setPadding(0, dp(4), 0, dp(4))
-                }
-                addView(consent)
-                addView(spacer(10))
-
-                val enableButton = actionButton(
-                    text = if (accessibilityEnabled) {
-                        "Manage floating control"
-                    } else {
-                        "Continue to Accessibility settings"
-                    },
-                    fill = palette.ink,
-                    foreground = palette.canvas,
-                )
-                fun updateButtonState() {
-                    enableButton.isEnabled = consent.isChecked
-                    enableButton.alpha = if (consent.isChecked) 1f else 0.42f
-                }
-                consent.setOnCheckedChangeListener { _, isChecked ->
-                    if (!isChecked && consentGranted) {
-                        OverlayConsent.revoke(this@MainActivity)
-                    }
-                    updateButtonState()
-                }
-                enableButton.setOnClickListener {
-                    if (!consent.isChecked) return@setOnClickListener
-                    OverlayConsent.grant(this@MainActivity)
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                }
-                updateButtonState()
-                addView(enableButton, matchWidth())
-            },
-        )
     }
 
     private fun appearanceSection(): View {
@@ -327,8 +268,8 @@ class MainActivity : Activity() {
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(label("Floating control", palette.amber))
-            addView(spacer(10))
+            addView(sectionTitle("Floating control"))
+            addView(spacer(12))
             addView(
                 card().apply {
                     val preview = ImageView(this@MainActivity).apply {
@@ -351,39 +292,13 @@ class MainActivity : Activity() {
 
                     addView(
                         LinearLayout(this@MainActivity).apply {
-                            orientation = LinearLayout.HORIZONTAL
-                            gravity = Gravity.CENTER_VERTICAL
-                            minimumHeight = dp(102)
-                            addView(preview)
-                            addView(
-                                LinearLayout(this@MainActivity).apply {
-                                    orientation = LinearLayout.VERTICAL
-                                    setPadding(dp(18), 0, 0, 0)
-                                    addView(
-                                        TextView(this@MainActivity).apply {
-                                            text = getString(R.string.overlay_preview_title)
-                                            setTextColor(palette.ink)
-                                            textSize = 16f
-                                            typeface = Typeface.create(
-                                                "sans-serif-rounded",
-                                                Typeface.BOLD,
-                                            )
-                                        },
-                                    )
-                                    addView(spacer(5))
-                                    addView(
-                                        bodyText(
-                                            "Drag to move; a still hold records. Tiro remembers where you leave it.",
-                                            13f,
-                                        ),
-                                    )
-                                },
-                                LinearLayout.LayoutParams(
-                                    0,
-                                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                                    1f,
-                                ),
+                            gravity = Gravity.CENTER
+                            minimumHeight = dp(132)
+                            background = roundedBackground(
+                                fill = palette.deepGreen,
+                                radius = dp(18).toFloat(),
                             )
+                            addView(preview)
                         },
                         matchWidth(),
                     )
@@ -418,6 +333,8 @@ class MainActivity : Activity() {
                             "$value%"
                         },
                     )
+                    addView(divider())
+                    addView(releaseDelaySetting(settings.releaseDelayMillis))
                     addView(spacer(8))
                     addView(
                         smallButton("Reset position", "Reset floating control position").apply {
@@ -495,53 +412,89 @@ class MainActivity : Activity() {
         )
     }
 
-    private fun testSection(): View = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        addView(label("Try the overlay", palette.aqua))
-        addView(spacer(10))
-        addView(
-            card().apply {
-                addView(
-                    bodyText(
-                        "Keep your usual keyboard selected and tap this field. The Tiro logo " +
-                            "appears without closing the keyboard. Hold the logo and release to " +
-                            "insert, quick-tap for hands-free recording, or drag to move it.",
-                        14f,
-                    ),
+    private fun releaseDelaySetting(initialValue: Int): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(54)
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = getString(R.string.release_delay)
+                    setTextColor(palette.ink)
+                    textSize = 14f
+                    typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
+                },
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+            )
+
+            val valueField = EditText(this@MainActivity).apply {
+                setText(getString(R.string.integer_value, initialValue))
+                setTextColor(palette.ink)
+                textSize = 14f
+                gravity = Gravity.CENTER
+                inputType = InputType.TYPE_CLASS_NUMBER
+                imeOptions = EditorInfo.IME_ACTION_DONE
+                isSingleLine = true
+                setSelectAllOnFocus(true)
+                setPadding(dp(10), 0, dp(10), 0)
+                background = roundedBackground(
+                    fill = palette.field,
+                    radius = dp(12).toFloat(),
+                    strokeColor = palette.stroke,
+                    strokeWidth = dp(1),
                 )
-                addView(spacer(14))
-                addView(
-                    EditText(this@MainActivity).apply {
-                        hint = "Your transcript appears here"
-                        setHintTextColor(palette.ink.withAlpha(0.38f))
-                        setTextColor(palette.ink)
-                        textSize = 16f
-                        minHeight = dp(112)
-                        gravity = Gravity.TOP or Gravity.START
-                        setPadding(dp(14), dp(14), dp(14), dp(14))
-                        background = roundedBackground(
-                            fill = palette.field,
-                            radius = dp(12).toFloat(),
-                            strokeColor = palette.stroke,
-                            strokeWidth = dp(1),
-                        )
-                    },
-                    matchWidth(),
-                )
-            },
-        )
-    }
+                contentDescription = "Release delay in milliseconds"
+            }
+
+            fun commitValue() {
+                val value = valueField.text.toString().toIntOrNull()
+                    ?.coerceIn(
+                        OverlaySettingsStore.MIN_RELEASE_DELAY_MILLIS,
+                        OverlaySettingsStore.MAX_RELEASE_DELAY_MILLIS,
+                    )
+                    ?: OverlaySettingsStore.DEFAULT_RELEASE_DELAY_MILLIS
+                overlaySettingsStore.setReleaseDelayMillis(value)
+                val normalizedValue = getString(R.string.integer_value, value)
+                if (valueField.text.toString() != normalizedValue) {
+                    valueField.setText(normalizedValue)
+                    valueField.setSelection(valueField.text.length)
+                }
+            }
+
+            valueField.setOnFocusChangeListener { _, hasFocus ->
+                if (!hasFocus) commitValue()
+            }
+            valueField.setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    commitValue()
+                    valueField.clearFocus()
+                    true
+                } else {
+                    false
+                }
+            }
+            addView(valueField, LinearLayout.LayoutParams(dp(86), dp(48)))
+            addView(
+                TextView(this@MainActivity).apply {
+                    text = getString(R.string.milliseconds_abbreviation)
+                    setTextColor(palette.ink.withAlpha(0.58f))
+                    textSize = 12f
+                    typeface = Typeface.MONOSPACE
+                    setPadding(dp(8), 0, 0, 0)
+                },
+            )
+        }
 
     private fun historySection(): View {
         val transcripts = historyStore.all()
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            addView(label("Local history · ${transcripts.size}/25", palette.amber))
-            addView(spacer(10))
+            addView(sectionTitle("Local history"))
+            addView(spacer(12))
             addView(
                 card().apply {
                     if (transcripts.isEmpty()) {
-                        addView(bodyText("Your finished transcripts will stay here until you clear them."))
+                        addView(bodyText("Empty", 14f))
                     } else {
                         transcripts.take(5).forEachIndexed { index, transcript ->
                             val row = LinearLayout(this@MainActivity).apply {
@@ -583,18 +536,14 @@ class MainActivity : Activity() {
 
     private fun privacySection(): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        addView(label("Privacy boundary", palette.aqua))
-        addView(spacer(10))
+        addView(sectionTitle("Privacy"))
+        addView(spacer(12))
         addView(
             card().apply {
                 addView(
                     bodyText(
-                        "Recording begins only when you press the Tiro logo. " +
-                            "Tiro creates Android’s on-device recognizer and has no Internet permission. " +
-                            "Its Accessibility Service watches for focused editable fields and reads " +
-                            "the current field text and cursor only when inserting your transcript. " +
-                            "It does not store or share that field text. Tiro writes no audio files " +
-                            "and does not use analytics, crash reporting, an updater, or the clipboard.",
+                        "Android’s built-in speech recognition service is used.\n" +
+                            "No data is sent to the app creator.",
                         14f,
                     ),
                 )
@@ -661,43 +610,55 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun statusRow(number: String, title: String, ready: Boolean): View =
+    private fun sectionTitle(value: String): TextView = TextView(this).apply {
+        text = value
+        setTextColor(palette.ink)
+        textSize = 21f
+        typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
+        letterSpacing = -0.018f
+    }
+
+    private fun settingActionRow(
+        title: String,
+        status: String,
+        ready: Boolean,
+        action: String?,
+        onAction: () -> Unit,
+    ): View =
         LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(4), 0, dp(4))
+            minimumHeight = dp(54)
             addView(
-                TextView(this@MainActivity).apply {
-                    text = number
-                    gravity = Gravity.CENTER
-                    setTextColor(if (ready) palette.deepGreen else palette.ink)
-                    textSize = 12f
-                    typeface = Typeface.DEFAULT_BOLD
-                    background = roundedBackground(
-                        fill = if (ready) palette.aqua else palette.field,
-                        radius = dp(16).toFloat(),
+                LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(
+                        TextView(this@MainActivity).apply {
+                            text = title
+                            setTextColor(palette.ink)
+                            textSize = 15f
+                            typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
+                        },
                     )
-                },
-                LinearLayout.LayoutParams(dp(32), dp(32)),
-            )
-            addView(
-                TextView(this@MainActivity).apply {
-                    text = title
-                    setTextColor(palette.ink)
-                    textSize = 14f
-                    typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
-                    setPadding(dp(12), 0, 0, 0)
+                    addView(spacer(3))
+                    addView(
+                        TextView(this@MainActivity).apply {
+                            text = status
+                            setTextColor(if (ready) palette.aqua else palette.coral)
+                            textSize = 10f
+                            typeface = Typeface.MONOSPACE
+                        },
+                    )
                 },
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
             )
-            addView(
-                TextView(this@MainActivity).apply {
-                    text = if (ready) "READY" else "TO DO"
-                    setTextColor(if (ready) palette.aqua else palette.coral)
-                    textSize = 10f
-                    typeface = Typeface.MONOSPACE
-                },
-            )
+            if (action != null) {
+                addView(
+                    smallButton(action, action).apply {
+                        setOnClickListener { onAction() }
+                    },
+                )
+            }
         }
 
     private fun card(): LinearLayout = LinearLayout(this).apply {

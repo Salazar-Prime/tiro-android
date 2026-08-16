@@ -35,10 +35,6 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
-    private companion object {
-        const val RELEASE_TAIL_MILLIS = 450L
-    }
-
     private enum class RecognitionState {
         IDLE,
         PREPARING,
@@ -344,6 +340,7 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         }
         if (finishRecognitionRunnable != null) return
 
+        val releaseDelayMillis = overlaySettingsStore.load().releaseDelayMillis.toLong()
         finishRecognitionRunnable = Runnable {
             finishRecognitionRunnable = null
             if (recognitionState == RecognitionState.PREPARING ||
@@ -353,7 +350,7 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
                 updateOverlayVisual()
                 recognizer?.stopListening()
             }
-        }.also { handler.postDelayed(it, RELEASE_TAIL_MILLIS) }
+        }.also { handler.postDelayed(it, releaseDelayMillis) }
     }
 
     private fun cancelRecognition() {
