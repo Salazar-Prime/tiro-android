@@ -38,6 +38,7 @@ import com.salazarprime.tiro.accessibility.TiroAccessibilityService
 import com.salazarprime.tiro.history.TranscriptHistoryStore
 import com.salazarprime.tiro.recognition.RecognitionRequest
 import com.salazarprime.tiro.ui.TiroPalette
+import com.salazarprime.tiro.ui.TiroWritingView
 import com.salazarprime.tiro.ui.actionButton
 import com.salazarprime.tiro.ui.dp
 import com.salazarprime.tiro.ui.glassBackground
@@ -50,6 +51,8 @@ class MainActivity : Activity() {
     private lateinit var overlaySettingsStore: OverlaySettingsStore
     private lateinit var palette: TiroPalette
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var isFirstResume = true
+    private var hasAnimatedWordmark = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +64,11 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        if (::historyStore.isInitialized) render()
+        if (isFirstResume) {
+            isFirstResume = false
+        } else if (::historyStore.isInitialized) {
+            render()
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -137,75 +144,25 @@ class MainActivity : Activity() {
             },
             LinearLayout.LayoutParams(dp(66), dp(66)),
         )
+        val animateWordmark = !hasAnimatedWordmark
+        hasAnimatedWordmark = true
         addView(
-            LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.BOTTOM
-                setPadding(dp(16), 0, 0, 0)
-                addView(
-                    TextView(this@MainActivity).apply {
-                        text = getString(R.string.app_name)
-                        setTextColor(palette.aqua)
-                        textSize = 54f
-                        typeface = Typeface.create(
-                            resources.getFont(R.font.dancing_script),
-                            620,
-                            false,
-                        )
-                        includeFontPadding = false
-                    },
-                    LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ),
-                )
-                addView(
-                    typingCaret(),
-                    LinearLayout.LayoutParams(dp(25), dp(3)).apply {
-                        gravity = Gravity.BOTTOM
-                        bottomMargin = dp(8)
-                    },
-                )
-            },
+            TiroWritingView(
+                context = this@MainActivity,
+                palette = palette,
+                animateOnAttach = animateWordmark,
+            ),
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-            ),
+            ).apply {
+                marginStart = dp(16)
+            },
         )
         addView(
             View(this@MainActivity),
             LinearLayout.LayoutParams(0, 1, 1f),
         )
-    }
-
-    private fun typingCaret(): View = object : View(this) {
-        private var caretVisible = true
-        private val blink = object : Runnable {
-            override fun run() {
-                caretVisible = !caretVisible
-                animate()
-                    .alpha(if (caretVisible) 1f else 0.08f)
-                    .setDuration(130)
-                    .start()
-                postDelayed(this, 520)
-            }
-        }
-
-        override fun onAttachedToWindow() {
-            super.onAttachedToWindow()
-            caretVisible = true
-            alpha = 1f
-            postDelayed(blink, 520)
-        }
-
-        override fun onDetachedFromWindow() {
-            removeCallbacks(blink)
-            animate().cancel()
-            super.onDetachedFromWindow()
-        }
-    }.apply {
-        setBackgroundColor(palette.amber)
-        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
 
     private fun accessSection(): View {
