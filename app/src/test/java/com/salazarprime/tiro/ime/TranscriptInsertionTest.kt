@@ -76,6 +76,21 @@ class TranscriptInsertionTest {
     }
 
     @Test
+    fun ignoresHintTextFromAProviderReportingCursorAtZero() {
+        assertEquals(
+            TranscriptInsertion.Replacement("Hello", 5),
+            TranscriptInsertion.replaceAccessibilityText(
+                rawTranscript = "Hello",
+                exposedText = "Search Google or type URL",
+                hintText = "Search Google or type URL",
+                isShowingHintText = false,
+                selectionStart = 0,
+                selectionEnd = 0,
+            ),
+        )
+    }
+
+    @Test
     fun preservesRealTextEvenWhenItMatchesTheFieldHint() {
         assertEquals(
             TranscriptInsertion.Replacement("Tap here to type Hello", 22),

@@ -39,12 +39,12 @@ internal object TranscriptInsertion {
         selectionStart: Int,
         selectionEnd: Int,
     ): Replacement? {
-        val providerExposesOnlyHint =
-            selectionStart < 0 &&
-                selectionEnd < 0 &&
+        val providerExposesHintAsText =
+            selectionStart <= 0 &&
+                selectionEnd <= 0 &&
                 !hintText.isNullOrEmpty() &&
                 exposedText == hintText
-        val currentText = if (isShowingHintText || providerExposesOnlyHint) {
+        val currentText = if (isShowingHintText || providerExposesHintAsText) {
             ""
         } else {
             exposedText
