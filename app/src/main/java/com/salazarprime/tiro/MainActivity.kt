@@ -92,7 +92,7 @@ class MainActivity : Activity() {
             setBackgroundColor(palette.canvas)
         }
         content.addView(hero())
-        content.addView(spacer(12))
+        content.addView(spacer(24))
         content.addView(appearanceSection())
         content.addView(spacer(28))
         content.addView(historySection())
@@ -271,8 +271,7 @@ class MainActivity : Activity() {
                         preview.layoutParams = LinearLayout.LayoutParams(size, size)
                         preview.background = this@MainActivity.glassBackground(
                             radius = size * 0.215f,
-                            strokeColor = palette.aqua,
-                            strokeWidth = dp(2),
+                            strokeWidth = 0,
                         )
                         preview.alpha = previewOpacity
                     }

@@ -690,16 +690,9 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
     }
 
     private fun updateTile() {
-        val palette = context.tiroPalette()
-        val strokeColor = resultColor ?: when (state) {
-            State.IDLE -> palette.stroke
-            State.RECORDING -> palette.amber
-            State.TRANSCRIBING -> palette.aqua
-        }
         background = context.glassBackground(
             radius = iconSizePx * 0.215f,
-            strokeColor = strokeColor,
-            strokeWidth = context.dp(if (state == State.IDLE && resultColor == null) 2 else 4),
+            strokeWidth = 0,
         )
         alpha = userOpacity * if (state == State.TRANSCRIBING) 0.82f else 1f
     }
