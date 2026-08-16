@@ -38,6 +38,7 @@ import com.salazarprime.tiro.recognition.RecognitionRequest
 import com.salazarprime.tiro.ui.TiroPalette
 import com.salazarprime.tiro.ui.actionButton
 import com.salazarprime.tiro.ui.dp
+import com.salazarprime.tiro.ui.glassBackground
 import com.salazarprime.tiro.ui.rippleBackground
 import com.salazarprime.tiro.ui.roundedBackground
 import com.salazarprime.tiro.ui.tiroPalette
@@ -111,14 +112,8 @@ class MainActivity : Activity() {
             }
         }
         setContentView(scroll)
-        val lightBars = resources.configuration.uiMode and 0x30 != 0x20
         window.decorView.windowInsetsController?.setSystemBarsAppearance(
-            if (lightBars) {
-                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
-                    WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
-            } else {
-                0
-            },
+            0,
             WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
                 WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
         )
@@ -145,10 +140,8 @@ class MainActivity : Activity() {
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 contentDescription = "Tiro"
                 setPadding(dp(3), dp(3), dp(3), dp(3))
-                background = roundedBackground(
-                    fill = palette.deepGreen,
-                    radius = dp(16).toFloat(),
-                )
+                elevation = dp(10).toFloat()
+                background = this@MainActivity.glassBackground(dp(16).toFloat())
             },
             LinearLayout.LayoutParams(dp(70), dp(70)),
         )
@@ -281,8 +274,7 @@ class MainActivity : Activity() {
                     fun updatePreview() {
                         val size = dp(previewSizeDp)
                         preview.layoutParams = LinearLayout.LayoutParams(size, size)
-                        preview.background = roundedBackground(
-                            fill = palette.deepGreen,
+                        preview.background = this@MainActivity.glassBackground(
                             radius = size * 0.215f,
                             strokeColor = palette.aqua,
                             strokeWidth = dp(2),
@@ -294,10 +286,7 @@ class MainActivity : Activity() {
                         LinearLayout(this@MainActivity).apply {
                             gravity = Gravity.CENTER
                             minimumHeight = dp(132)
-                            background = roundedBackground(
-                                fill = palette.deepGreen,
-                                radius = dp(18).toFloat(),
-                            )
+                            background = this@MainActivity.glassBackground(dp(18).toFloat())
                             addView(preview)
                         },
                         matchWidth(),
@@ -664,12 +653,8 @@ class MainActivity : Activity() {
     private fun card(): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(18), dp(18), dp(18), dp(18))
-        background = roundedBackground(
-            fill = palette.surface,
-            radius = dp(20).toFloat(),
-            strokeColor = palette.stroke,
-            strokeWidth = dp(1),
-        )
+        elevation = dp(4).toFloat()
+        background = this@MainActivity.glassBackground(dp(20).toFloat())
     }
 
     private fun bodyText(value: String, size: Float = 15f): TextView = TextView(this).apply {

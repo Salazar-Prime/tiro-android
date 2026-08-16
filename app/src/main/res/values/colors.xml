@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="tiro_canvas">#F6F7F3</color>
-    <color name="tiro_surface">#FDFEFC</color>
-    <color name="tiro_field">#E9EAE6</color>
-    <color name="tiro_ink">#17181C</color>
-    <color name="tiro_stroke">#D5D6D1</color>
-    <color name="tiro_coral">#FF6B5E</color>
-    <color name="tiro_aqua">#63D9CC</color>
-    <color name="tiro_deep_green">#0E2F28</color>
-    <color name="tiro_amber">#F0B845</color>
-    <color name="icon_background">#0E2F28</color>
+    <color name="tiro_canvas">#030A08</color>
+    <color name="tiro_surface">#0C2418</color>
+    <color name="tiro_field">#001818</color>
+    <color name="tiro_ink">#EEFAF1</color>
+    <color name="tiro_stroke">#154034</color>
+    <color name="tiro_coral">#FCC054</color>
+    <color name="tiro_aqua">#A8E4C0</color>
+    <color name="tiro_deep_green">#001818</color>
+    <color name="tiro_amber">#FCC054</color>
 </resources>
-

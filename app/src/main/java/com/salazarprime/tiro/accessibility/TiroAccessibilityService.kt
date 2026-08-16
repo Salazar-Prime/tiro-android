@@ -29,7 +29,7 @@ import com.salazarprime.tiro.history.TranscriptHistoryStore
 import com.salazarprime.tiro.ime.TranscriptInsertion
 import com.salazarprime.tiro.recognition.RecognitionRequest
 import com.salazarprime.tiro.ui.dp
-import com.salazarprime.tiro.ui.roundedBackground
+import com.salazarprime.tiro.ui.glassBackground
 import com.salazarprime.tiro.ui.tiroPalette
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -657,7 +657,8 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
     }
 
     fun showResult(success: Boolean) {
-        resultColor = if (success) 0xFF70D5D1.toInt() else 0xFFFF6B5E.toInt()
+        val palette = context.tiroPalette()
+        resultColor = if (success) palette.aqua else palette.amber
         updateTile()
         scaleX = 1f
         scaleY = 1f
@@ -666,12 +667,11 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
     private fun updateTile() {
         val palette = context.tiroPalette()
         val strokeColor = resultColor ?: when (state) {
-            State.IDLE -> palette.aqua and 0x99FFFFFF.toInt()
-            State.RECORDING -> palette.coral
+            State.IDLE -> palette.stroke
+            State.RECORDING -> palette.amber
             State.TRANSCRIBING -> palette.aqua
         }
-        background = roundedBackground(
-            fill = palette.deepGreen,
+        background = context.glassBackground(
             radius = iconSizePx * 0.215f,
             strokeColor = strokeColor,
             strokeWidth = context.dp(if (state == State.IDLE && resultColor == null) 2 else 4),

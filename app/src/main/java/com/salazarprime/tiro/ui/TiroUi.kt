@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
 import android.view.Gravity
 import android.view.View
@@ -50,6 +51,36 @@ internal fun roundedBackground(
     if (strokeColor != null && strokeWidth > 0) {
         setStroke(strokeWidth, strokeColor)
     }
+}
+
+internal fun Context.glassBackground(
+    radius: Float,
+    strokeColor: Int = tiroPalette().aqua.withOpacity(0.20f),
+    strokeWidth: Int = dp(1),
+): LayerDrawable {
+    val palette = tiroPalette()
+    val base = GradientDrawable(
+        GradientDrawable.Orientation.TL_BR,
+        intArrayOf(palette.stroke, palette.surface, palette.deepGreen),
+    ).apply {
+        shape = GradientDrawable.RECTANGLE
+        cornerRadius = radius
+    }
+    val cornerGlow = GradientDrawable().apply {
+        shape = GradientDrawable.RECTANGLE
+        colors = intArrayOf(palette.aqua.withOpacity(0.17f), Color.TRANSPARENT)
+        gradientType = GradientDrawable.RADIAL_GRADIENT
+        gradientRadius = dp(230).toFloat()
+        setGradientCenter(0.14f, 0.04f)
+        cornerRadius = radius
+    }
+    val rim = roundedBackground(
+        fill = Color.TRANSPARENT,
+        radius = radius,
+        strokeColor = strokeColor,
+        strokeWidth = strokeWidth,
+    )
+    return LayerDrawable(arrayOf(base, cornerGlow, rim))
 }
 
 internal fun rippleBackground(
@@ -108,3 +139,7 @@ internal fun View.setMargins(
     layoutParams = params
 }
 
+private fun Int.withOpacity(opacity: Float): Int {
+    val alpha = (opacity.coerceIn(0f, 1f) * 255).toInt()
+    return (this and 0x00FFFFFF) or (alpha shl 24)
+}
