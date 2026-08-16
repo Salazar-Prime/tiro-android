@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
@@ -21,11 +22,14 @@ import android.view.WindowInsetsController
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import com.salazarprime.tiro.accessibility.OverlayConsent
+import com.salazarprime.tiro.accessibility.OverlaySettingsStore
 import com.salazarprime.tiro.accessibility.TiroAccessibilityService
 import com.salazarprime.tiro.history.TranscriptHistoryStore
 import com.salazarprime.tiro.recognition.RecognitionRequest
@@ -39,6 +43,7 @@ import com.salazarprime.tiro.ui.tiroPalette
 
 class MainActivity : Activity() {
     private lateinit var historyStore: TranscriptHistoryStore
+    private lateinit var overlaySettingsStore: OverlaySettingsStore
     private lateinit var palette: TiroPalette
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -46,6 +51,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.setDecorFitsSystemWindows(false)
         historyStore = TranscriptHistoryStore(this)
+        overlaySettingsStore = OverlaySettingsStore(this)
         render()
     }
 
@@ -74,6 +80,8 @@ class MainActivity : Activity() {
         content.addView(hero())
         content.addView(spacer(28))
         content.addView(setupSection())
+        content.addView(spacer(24))
+        content.addView(appearanceSection())
         content.addView(spacer(24))
         content.addView(testSection())
         content.addView(spacer(24))
@@ -312,6 +320,181 @@ class MainActivity : Activity() {
         )
     }
 
+    private fun appearanceSection(): View {
+        val settings = overlaySettingsStore.load()
+        var previewSizeDp = settings.sizeDp
+        var previewOpacity = settings.opacityPercent / 100f
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(label("Floating control", palette.amber))
+            addView(spacer(10))
+            addView(
+                card().apply {
+                    val preview = ImageView(this@MainActivity).apply {
+                        setImageResource(R.drawable.ic_tiro_overlay_foreground)
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                        contentDescription = "Tiro floating control preview"
+                    }
+
+                    fun updatePreview() {
+                        val size = dp(previewSizeDp)
+                        preview.layoutParams = LinearLayout.LayoutParams(size, size)
+                        preview.background = roundedBackground(
+                            fill = palette.deepGreen,
+                            radius = size * 0.215f,
+                            strokeColor = palette.aqua,
+                            strokeWidth = dp(2),
+                        )
+                        preview.alpha = previewOpacity
+                    }
+
+                    addView(
+                        LinearLayout(this@MainActivity).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = Gravity.CENTER_VERTICAL
+                            minimumHeight = dp(102)
+                            addView(preview)
+                            addView(
+                                LinearLayout(this@MainActivity).apply {
+                                    orientation = LinearLayout.VERTICAL
+                                    setPadding(dp(18), 0, 0, 0)
+                                    addView(
+                                        TextView(this@MainActivity).apply {
+                                            text = getString(R.string.overlay_preview_title)
+                                            setTextColor(palette.ink)
+                                            textSize = 16f
+                                            typeface = Typeface.create(
+                                                "sans-serif-rounded",
+                                                Typeface.BOLD,
+                                            )
+                                        },
+                                    )
+                                    addView(spacer(5))
+                                    addView(
+                                        bodyText(
+                                            "Drag it around the screen. Tiro remembers where you leave it.",
+                                            13f,
+                                        ),
+                                    )
+                                },
+                                LinearLayout.LayoutParams(
+                                    0,
+                                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                                    1f,
+                                ),
+                            )
+                        },
+                        matchWidth(),
+                    )
+                    updatePreview()
+                    addView(divider())
+                    addView(
+                        sliderSetting(
+                            title = "Icon size",
+                            initialValue = "${settings.sizeDp} dp",
+                            minimum = OverlaySettingsStore.MIN_SIZE_DP,
+                            maximum = OverlaySettingsStore.MAX_SIZE_DP,
+                            progress = settings.sizeDp,
+                        ) { value ->
+                            previewSizeDp = value
+                            overlaySettingsStore.setSizeDp(value)
+                            updatePreview()
+                            "$value dp"
+                        },
+                    )
+                    addView(divider())
+                    addView(
+                        sliderSetting(
+                            title = "Opacity",
+                            initialValue = "${settings.opacityPercent}%",
+                            minimum = OverlaySettingsStore.MIN_OPACITY_PERCENT,
+                            maximum = OverlaySettingsStore.MAX_OPACITY_PERCENT,
+                            progress = settings.opacityPercent,
+                        ) { value ->
+                            previewOpacity = value / 100f
+                            overlaySettingsStore.setOpacityPercent(value)
+                            updatePreview()
+                            "$value%"
+                        },
+                    )
+                    addView(spacer(8))
+                    addView(
+                        smallButton("Reset position", "Reset floating control position").apply {
+                            setOnClickListener {
+                                overlaySettingsStore.resetPosition()
+                                toast("Floating control position reset.")
+                            }
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    private fun sliderSetting(
+        title: String,
+        initialValue: String,
+        minimum: Int,
+        maximum: Int,
+        progress: Int,
+        onChange: (Int) -> String,
+    ): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        val valueLabel = TextView(this@MainActivity).apply {
+            text = initialValue
+            setTextColor(palette.aqua)
+            textSize = 11f
+            typeface = Typeface.MONOSPACE
+        }
+        addView(
+            LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(
+                    TextView(this@MainActivity).apply {
+                        text = title
+                        setTextColor(palette.ink)
+                        textSize = 14f
+                        typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
+                    },
+                    LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+                )
+                addView(valueLabel)
+            },
+            matchWidth(),
+        )
+        addView(spacer(5))
+        addView(
+            SeekBar(this@MainActivity).apply {
+                min = minimum
+                max = maximum
+                this.progress = progress
+                progressTintList = ColorStateList.valueOf(palette.aqua)
+                progressBackgroundTintList = ColorStateList.valueOf(palette.stroke)
+                thumbTintList = ColorStateList.valueOf(palette.coral)
+                contentDescription = title
+                setOnSeekBarChangeListener(
+                    object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(
+                            seekBar: SeekBar?,
+                            value: Int,
+                            fromUser: Boolean,
+                        ) {
+                            if (!fromUser) return
+                            valueLabel.text = onChange(value)
+                        }
+
+                        override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+
+                        override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+                    },
+                )
+            },
+            matchWidth(),
+        )
+    }
+
     private fun testSection(): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         addView(label("Try the overlay", palette.aqua))
@@ -322,7 +505,7 @@ class MainActivity : Activity() {
                     bodyText(
                         "Keep your usual keyboard selected and tap this field. The Tiro logo " +
                             "appears without closing the keyboard. Hold the logo and release to " +
-                            "insert, or quick-tap it for hands-free recording.",
+                            "insert, quick-tap for hands-free recording, or drag to move it.",
                         14f,
                     ),
                 )

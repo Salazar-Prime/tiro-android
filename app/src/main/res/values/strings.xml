@@ -7,7 +7,8 @@
     <string name="accessibility_service_summary">Voice typing beside your regular keyboard</string>
     <string name="accessibility_disclosure_title">Focused-field access</string>
     <string name="accessibility_consent">I understand and agree to this use of Accessibility Service.</string>
-    <string name="overlay_idle_description">Tiro voice typing. Hold to record or tap for hands-free recording.</string>
+    <string name="overlay_idle_description">Tiro voice typing. Hold to record, tap for hands-free recording, or drag to move.</string>
     <string name="overlay_recording_description">Tiro is recording. Release or tap again to transcribe.</string>
     <string name="overlay_transcribing_description">Tiro is transcribing.</string>
+    <string name="overlay_preview_title">Your Tiro button</string>
 </resources>

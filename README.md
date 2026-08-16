@@ -37,15 +37,17 @@ The Accessibility Service is required to detect focused editable fields, show th
 2. Read the **Focused-field access** disclosure, select the consent checkbox, and tap **Continue to Accessibility settings**.
 3. Enable **Tiro floating voice control** in Android's Accessibility settings.
 4. If requested, tap **Prepare offline language**. Android's system speech component manages that download.
-5. Keep your preferred keyboard selected and focus an editable, non-password text field in any app.
-6. Use the single floating Tiro logo:
+5. Optionally adjust **Icon size** and **Opacity** under **Floating control**.
+6. Keep your preferred keyboard selected and focus an editable, non-password text field in any app.
+7. Use the single floating Tiro logo:
 
 | Gesture | Result |
 | --- | --- |
 | Press and hold | Recording begins on touch-down; release to transcribe and insert |
 | Quick tap | Start hands-free recording; tap the logo again to transcribe and insert |
+| Drag | Move the control; Tiro remembers its position across apps |
 
-The button is a non-focusable Android accessibility overlay. It does not replace, dismiss, or switch your keyboard. Its ring changes from aqua to coral while the microphone is active. Android's speech service may still end a hands-free session after silence.
+The button is a non-focusable Android accessibility overlay. It uses Tiro's rounded-square app-icon shape rather than Android's device-dependent launcher mask. It does not replace, dismiss, or switch your keyboard. Its outline changes from aqua to coral while the microphone is active. Android's speech service may still end a hands-free session after silence.
 
 Tiro does not request Android's generic **Display over other apps** permission. The floating button uses `TYPE_ACCESSIBILITY_OVERLAY` and is available only while Tiro's Accessibility Service is enabled.
 
@@ -72,6 +74,7 @@ The first command is the verified build, unit-test, and lint path. The resulting
 - Tiro has no `INTERNET` permission and never creates Android's normal potentially network-backed recognizer.
 - If you tap **Prepare offline language**, Android's system speech component—not Tiro—may contact its provider to download or update the English language pack. The provider and its policies depend on the device.
 - When inserting a transcript, Tiro temporarily reads the focused field's current text and selection so it can replace the selection without erasing surrounding text. It then uses Android accessibility text and selection actions. Tiro does not save or share the field text it reads.
+- Icon size, opacity, and the normalized screen position remain in Tiro's private app preferences. Use **Reset position**, clear Tiro's app data, or uninstall Tiro to remove these settings.
 - Up to 25 completed transcripts remain in Tiro's private app preferences. Delete individual entries, use **Clear history**, clear Tiro's app data, or uninstall Tiro to remove them. App backup and device-transfer rules exclude this history.
 - No service credential or account is required or stored.
 - Tiro does not send analytics, telemetry, crash reports, or application logs. Android and the installed system speech service may produce their own operational diagnostics.

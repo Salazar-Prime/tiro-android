@@ -4,10 +4,9 @@ import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,6 +17,8 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -28,6 +29,10 @@ import com.salazarprime.tiro.history.TranscriptHistoryStore
 import com.salazarprime.tiro.ime.TranscriptInsertion
 import com.salazarprime.tiro.recognition.RecognitionRequest
 import com.salazarprime.tiro.ui.dp
+import com.salazarprime.tiro.ui.roundedBackground
+import com.salazarprime.tiro.ui.tiroPalette
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 
 class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
     private enum class RecognitionState {
@@ -39,11 +44,16 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
 
     private lateinit var windowManager: WindowManager
     private lateinit var historyStore: TranscriptHistoryStore
+    private lateinit var overlaySettingsStore: OverlaySettingsStore
     private val handler = Handler(Looper.getMainLooper())
     private val gestureMachine = OverlayGestureMachine()
+    private val settingsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        applyOverlaySettings()
+    }
 
     private var overlayButton: TiroOverlayIcon? = null
     private var overlayAttached = false
+    private var dragOrigin = OverlayPlacement.Point(0, 0)
     private var targetWindowId = -1
     private var recognizer: SpeechRecognizer? = null
     private var recognitionState = RecognitionState.IDLE
@@ -54,6 +64,8 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         super.onCreate()
         windowManager = getSystemService(WindowManager::class.java)
         historyStore = TranscriptHistoryStore(this)
+        overlaySettingsStore = OverlaySettingsStore(this)
+        overlaySettingsStore.registerListener(settingsListener)
     }
 
     override fun onServiceConnected() {
@@ -89,6 +101,7 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
     override fun onDestroy() {
         refreshRunnable?.let(handler::removeCallbacks)
         resultResetRunnable?.let(handler::removeCallbacks)
+        overlaySettingsStore.unregisterListener(settingsListener)
         hideOverlay()
         super.onDestroy()
     }
@@ -139,6 +152,20 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
             created.onCancel = {
                 handleGestureActions(gestureMachine.cancel())
             }
+            created.onDragStart = {
+                cancelRecognition()
+                val params = created.layoutParams as? WindowManager.LayoutParams
+                dragOrigin = OverlayPlacement.Point(params?.x ?: 0, params?.y ?: 0)
+            }
+            created.onDragMove = { deltaX, deltaY ->
+                moveOverlay(
+                    x = dragOrigin.x + deltaX.roundToInt(),
+                    y = dragOrigin.y + deltaY.roundToInt(),
+                )
+            }
+            created.onDragEnd = {
+                persistOverlayPosition()
+            }
             created.onAccessibilityClick = {
                 if (recognitionState == RecognitionState.IDLE) {
                     handleGestureActions(gestureMachine.press(SystemClock.uptimeMillis()))
@@ -154,7 +181,12 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         }
 
         runCatching {
-            windowManager.addView(button, overlayLayoutParams())
+            val settings = overlaySettingsStore.load()
+            button.applyAppearance(
+                sizePx = dp(settings.sizeDp),
+                opacity = settings.opacityPercent / 100f,
+            )
+            windowManager.addView(button, overlayLayoutParams(settings))
             overlayAttached = true
             updateOverlayVisual()
         }.onFailure {
@@ -173,21 +205,87 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
         targetWindowId = -1
     }
 
-    private fun overlayLayoutParams(): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(
-            dp(72),
-            dp(72),
+    private fun overlayLayoutParams(
+        settings: OverlaySettingsStore.Settings,
+    ): WindowManager.LayoutParams {
+        val size = dp(settings.sizeDp)
+        val point = OverlayPlacement.fromFractions(
+            area = overlayArea(),
+            size = size,
+            xFraction = settings.xFraction,
+            yFraction = settings.yFraction,
+        )
+        return WindowManager.LayoutParams(
+            size,
+            size,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply {
-            gravity = Gravity.END or Gravity.CENTER_VERTICAL
-            x = dp(12)
-            y = -dp(64)
+            gravity = Gravity.TOP or Gravity.START
+            x = point.x
+            y = point.y
             title = "Tiro voice control"
         }
+    }
+
+    private fun overlayArea(): OverlayPlacement.Area {
+        val metrics = windowManager.currentWindowMetrics
+        val bounds = metrics.bounds
+        val bars = metrics.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
+        val margin = dp(10)
+        return OverlayPlacement.Area(
+            left = bounds.left + bars.left + margin,
+            top = bounds.top + bars.top + margin,
+            right = (bounds.right - bars.right - margin).coerceAtLeast(bounds.left + margin),
+            bottom = (bounds.bottom - bars.bottom - margin).coerceAtLeast(bounds.top + margin),
+        )
+    }
+
+    private fun applyOverlaySettings() {
+        val button = overlayButton ?: return
+        val settings = overlaySettingsStore.load()
+        val size = dp(settings.sizeDp)
+        button.applyAppearance(sizePx = size, opacity = settings.opacityPercent / 100f)
+        if (!overlayAttached) return
+
+        val params = button.layoutParams as? WindowManager.LayoutParams ?: return
+        val point = OverlayPlacement.fromFractions(
+            area = overlayArea(),
+            size = size,
+            xFraction = settings.xFraction,
+            yFraction = settings.yFraction,
+        )
+        params.width = size
+        params.height = size
+        params.x = point.x
+        params.y = point.y
+        runCatching { windowManager.updateViewLayout(button, params) }
+    }
+
+    private fun moveOverlay(x: Int, y: Int) {
+        val button = overlayButton ?: return
+        if (!overlayAttached) return
+        val params = button.layoutParams as? WindowManager.LayoutParams ?: return
+        val size = params.width.coerceAtLeast(1)
+        val point = OverlayPlacement.clamp(overlayArea(), size, x, y)
+        params.x = point.x
+        params.y = point.y
+        runCatching { windowManager.updateViewLayout(button, params) }
+    }
+
+    private fun persistOverlayPosition() {
+        val button = overlayButton ?: return
+        val params = button.layoutParams as? WindowManager.LayoutParams ?: return
+        val fractions = OverlayPlacement.toFractions(
+            area = overlayArea(),
+            size = params.width.coerceAtLeast(1),
+            point = OverlayPlacement.Point(params.x, params.y),
+        )
+        overlaySettingsStore.setPosition(fractions.x, fractions.y)
+    }
 
     private fun handleGestureActions(actions: List<OverlayGestureMachine.Action>) {
         actions.forEach { action ->
@@ -399,15 +497,24 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
     var onPress: (Long) -> Unit = {}
     var onRelease: (Long) -> Unit = {}
     var onCancel: () -> Unit = {}
+    var onDragStart: () -> Unit = {}
+    var onDragMove: (Float, Float) -> Unit = { _, _ -> }
+    var onDragEnd: () -> Unit = {}
     var onAccessibilityClick: () -> Unit = {}
 
     private var state = State.IDLE
     private var sustained = false
+    private var iconSizePx = context.dp(OverlaySettingsStore.DEFAULT_SIZE_DP)
+    private var userOpacity = 1f
+    private var resultColor: Int? = null
+    private var touchDownX = 0f
+    private var touchDownY = 0f
+    private var dragging = false
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
     init {
-        setImageResource(R.mipmap.ic_launcher)
+        setImageResource(R.drawable.ic_tiro_overlay_foreground)
         scaleType = ScaleType.FIT_CENTER
-        setPadding(context.dp(5), context.dp(5), context.dp(5), context.dp(5))
         elevation = context.dp(12).toFloat()
         isClickable = true
         isFocusable = true
@@ -419,18 +526,42 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                touchDownX = event.rawX
+                touchDownY = event.rawY
+                dragging = false
                 isPressed = true
                 onPress(event.eventTime)
                 return true
             }
+            MotionEvent.ACTION_MOVE -> {
+                val deltaX = event.rawX - touchDownX
+                val deltaY = event.rawY - touchDownY
+                if (!dragging && hypot(deltaX, deltaY) > touchSlop) {
+                    dragging = true
+                    isPressed = false
+                    onDragStart()
+                }
+                if (dragging) onDragMove(deltaX, deltaY)
+                return true
+            }
             MotionEvent.ACTION_UP -> {
                 isPressed = false
-                onRelease(event.eventTime)
+                if (dragging) {
+                    dragging = false
+                    onDragEnd()
+                } else {
+                    onRelease(event.eventTime)
+                }
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
                 isPressed = false
-                onCancel()
+                if (dragging) {
+                    dragging = false
+                    onDragEnd()
+                } else {
+                    onCancel()
+                }
                 return true
             }
         }
@@ -446,15 +577,7 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
     fun setState(value: State, isSustained: Boolean) {
         state = value
         sustained = isSustained
-        val ring = when (state) {
-            State.IDLE -> 0x9963D9CC.toInt()
-            State.RECORDING -> 0xFFFF6B5E.toInt()
-            State.TRANSCRIBING -> 0xFF70D5D1.toInt()
-        }
-        background = ringDrawable(
-            ring,
-            if (state == State.IDLE) context.dp(2) else context.dp(4),
-        )
+        resultColor = null
         contentDescription = context.getString(
             when (state) {
                 State.IDLE -> R.string.overlay_idle_description
@@ -462,9 +585,15 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
                 State.TRANSCRIBING -> R.string.overlay_transcribing_description
             },
         )
-        alpha = if (state == State.TRANSCRIBING) 0.82f else 1f
+        updateTile()
         scaleX = if (state == State.RECORDING && sustained) 1.08f else 1f
         scaleY = scaleX
+    }
+
+    fun applyAppearance(sizePx: Int, opacity: Float) {
+        iconSizePx = sizePx.coerceAtLeast(1)
+        userOpacity = opacity.coerceIn(0f, 1f)
+        updateTile()
     }
 
     fun setLevel(level: Float) {
@@ -475,19 +604,25 @@ private class TiroOverlayIcon(context: Context) : ImageView(context) {
     }
 
     fun showResult(success: Boolean) {
-        background = ringDrawable(
-            color = if (success) 0xFF70D5D1.toInt() else 0xFFFF6B5E.toInt(),
-            width = context.dp(5),
-        )
-        alpha = 1f
+        resultColor = if (success) 0xFF70D5D1.toInt() else 0xFFFF6B5E.toInt()
+        updateTile()
         scaleX = 1f
         scaleY = 1f
     }
 
-    private fun ringDrawable(color: Int, width: Int): GradientDrawable =
-        GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(Color.TRANSPARENT)
-            setStroke(width, color)
+    private fun updateTile() {
+        val palette = context.tiroPalette()
+        val strokeColor = resultColor ?: when (state) {
+            State.IDLE -> palette.aqua and 0x99FFFFFF.toInt()
+            State.RECORDING -> palette.coral
+            State.TRANSCRIBING -> palette.aqua
         }
+        background = roundedBackground(
+            fill = palette.deepGreen,
+            radius = iconSizePx * 0.215f,
+            strokeColor = strokeColor,
+            strokeWidth = context.dp(if (state == State.IDLE && resultColor == null) 2 else 4),
+        )
+        alpha = userOpacity * if (state == State.TRANSCRIBING) 0.82f else 1f
+    }
 }
