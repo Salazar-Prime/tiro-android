@@ -28,5 +28,20 @@ class TranscriptInsertionTest {
     fun ignoresBlankRecognitionResults() {
         assertEquals("", TranscriptInsertion.prepare("   ", "Hello"))
     }
-}
 
+    @Test
+    fun replacesTheCurrentSelectionAndReturnsNewCaret() {
+        assertEquals(
+            TranscriptInsertion.Replacement("Hello brave world", 11),
+            TranscriptInsertion.replaceSelection("brave", "Hello old world", 6, 9),
+        )
+    }
+
+    @Test
+    fun clampsAStaleSelectionToTheAvailableText() {
+        assertEquals(
+            TranscriptInsertion.Replacement("Hello again", 11),
+            TranscriptInsertion.replaceSelection("again", "Hello", 99, 99),
+        )
+    }
+}

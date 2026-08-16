@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Tiro</string>
-    <string name="ime_name">Tiro voice keyboard</string>
-    <string name="ime_subtype_name">Tiro English voice typing</string>
     <string name="hero_title">Speak where\nyour cursor is.</string>
-    <string name="overlay_mode">TIRO · ON DEVICE</string>
-    <string name="overlay_ready">Hold MIC to speak</string>
-    <string name="overlay_mic">MIC</string>
+    <string name="accessibility_service_name">Tiro floating voice control</string>
+    <string name="accessibility_service_description">Shows the Tiro voice button when an editable field is focused and inserts your completed transcript at the cursor.</string>
+    <string name="accessibility_service_summary">Voice typing beside your regular keyboard</string>
+    <string name="accessibility_disclosure_title">Focused-field access</string>
+    <string name="accessibility_consent">I understand and agree to this use of Accessibility Service.</string>
+    <string name="overlay_idle_description">Tiro voice typing. Hold to record or tap for hands-free recording.</string>
+    <string name="overlay_recording_description">Tiro is recording. Release or tap again to transcribe.</string>
+    <string name="overlay_transcribing_description">Tiro is transcribing.</string>
 </resources>

@@ -18,15 +18,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowInsetsController
-import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.salazarprime.tiro.accessibility.OverlayConsent
+import com.salazarprime.tiro.accessibility.TiroAccessibilityService
 import com.salazarprime.tiro.history.TranscriptHistoryStore
-import com.salazarprime.tiro.ime.TiroInputMethodService
 import com.salazarprime.tiro.recognition.RecognitionRequest
 import com.salazarprime.tiro.ui.TiroPalette
 import com.salazarprime.tiro.ui.actionButton
@@ -174,8 +175,9 @@ class MainActivity : Activity() {
     private fun setupSection(): View {
         val microphoneGranted = checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
-        val keyboardEnabled = isKeyboardEnabled()
-        val keyboardSelected = isKeyboardSelected()
+        val accessibilityEnabled = isAccessibilityServiceEnabled()
+        val consentGranted = OverlayConsent.isGranted(this)
+        val recognizerAvailable = SpeechRecognizer.isOnDeviceRecognitionAvailable(this)
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -185,9 +187,15 @@ class MainActivity : Activity() {
                 card().apply {
                     addView(statusRow("1", "Microphone", microphoneGranted))
                     addView(divider())
-                    addView(statusRow("2", "Tiro keyboard enabled", keyboardEnabled))
+                    addView(
+                        statusRow(
+                            "2",
+                            "Floating control access",
+                            accessibilityEnabled && consentGranted,
+                        ),
+                    )
                     addView(divider())
-                    addView(statusRow("3", "Tiro keyboard selected", keyboardSelected))
+                    addView(statusRow("3", "On-device speech engine", recognizerAvailable))
                     addView(spacer(14))
 
                     if (!microphoneGranted) {
@@ -209,36 +217,7 @@ class MainActivity : Activity() {
                         addView(spacer(10))
                     }
 
-                    addView(
-                        actionButton(
-                            text = if (keyboardEnabled) "Manage keyboards" else "Enable Tiro keyboard",
-                            fill = palette.ink,
-                            foreground = palette.canvas,
-                        ).apply {
-                            setOnClickListener {
-                                startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
-                            }
-                        },
-                        matchWidth(),
-                    )
-                    addView(spacer(10))
-
-                    addView(
-                        actionButton(
-                            text = "Choose keyboard",
-                            fill = palette.field,
-                            foreground = palette.ink,
-                        ).apply {
-                            setOnClickListener {
-                                getSystemService(InputMethodManager::class.java)
-                                    .showInputMethodPicker()
-                            }
-                        },
-                        matchWidth(),
-                    )
-
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        addView(spacer(10))
                         addView(
                             actionButton(
                                 text = "Prepare offline language",
@@ -256,7 +235,81 @@ class MainActivity : Activity() {
                     }
                 },
             )
+            addView(spacer(14))
+            addView(accessibilityDisclosure(accessibilityEnabled, consentGranted))
         }
+    }
+
+    private fun accessibilityDisclosure(
+        accessibilityEnabled: Boolean,
+        consentGranted: Boolean,
+    ): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        addView(label("Required accessibility disclosure", palette.coral))
+        addView(spacer(10))
+        addView(
+            card().apply {
+                addView(
+                    TextView(this@MainActivity).apply {
+                        text = getString(R.string.accessibility_disclosure_title)
+                        setTextColor(palette.ink)
+                        textSize = 17f
+                        typeface = Typeface.create("sans-serif-rounded", Typeface.BOLD)
+                    },
+                )
+                addView(spacer(9))
+                addView(
+                    bodyText(
+                        "Tiro uses Android Accessibility Service to detect when an editable " +
+                            "field is focused, display the Tiro voice button over other apps, " +
+                            "and insert your transcript at that field’s cursor. During insertion, " +
+                            "Tiro reads that focused field’s current text and selection so it can " +
+                            "replace the selection without erasing surrounding text. It does not " +
+                            "collect, store, or share the field text it reads.",
+                        14f,
+                    ),
+                )
+                addView(spacer(12))
+
+                val consent = CheckBox(this@MainActivity).apply {
+                    text = getString(R.string.accessibility_consent)
+                    isChecked = consentGranted
+                    setTextColor(palette.ink)
+                    textSize = 13f
+                    buttonTintList = android.content.res.ColorStateList.valueOf(palette.coral)
+                    setPadding(0, dp(4), 0, dp(4))
+                }
+                addView(consent)
+                addView(spacer(10))
+
+                val enableButton = actionButton(
+                    text = if (accessibilityEnabled) {
+                        "Manage floating control"
+                    } else {
+                        "Continue to Accessibility settings"
+                    },
+                    fill = palette.ink,
+                    foreground = palette.canvas,
+                )
+                fun updateButtonState() {
+                    enableButton.isEnabled = consent.isChecked
+                    enableButton.alpha = if (consent.isChecked) 1f else 0.42f
+                }
+                consent.setOnCheckedChangeListener { _, isChecked ->
+                    if (!isChecked && consentGranted) {
+                        OverlayConsent.revoke(this@MainActivity)
+                    }
+                    updateButtonState()
+                }
+                enableButton.setOnClickListener {
+                    if (!consent.isChecked) return@setOnClickListener
+                    OverlayConsent.grant(this@MainActivity)
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+                updateButtonState()
+                addView(enableButton, matchWidth())
+            },
+        )
     }
 
     private fun testSection(): View = LinearLayout(this).apply {
@@ -267,8 +320,9 @@ class MainActivity : Activity() {
             card().apply {
                 addView(
                     bodyText(
-                        "Select Tiro, tap this field, then hold the coral MIC button. " +
-                            "Release to insert your words.",
+                        "Keep your usual keyboard selected and tap this field. The Tiro logo " +
+                            "appears without closing the keyboard. Hold the logo and release to " +
+                            "insert, or quick-tap it for hands-free recording.",
                         14f,
                     ),
                 )
@@ -352,10 +406,12 @@ class MainActivity : Activity() {
             card().apply {
                 addView(
                     bodyText(
-                        "Recording begins only while you hold MIC or start hands-free mode. " +
+                        "Recording begins only when you press the Tiro logo. " +
                             "Tiro creates Android’s on-device recognizer and has no Internet permission. " +
-                            "It writes no audio files and does not use analytics, crash reporting, " +
-                            "an updater, Accessibility Service, or the clipboard.",
+                            "Its Accessibility Service watches for focused editable fields and reads " +
+                            "the current field text and cursor only when inserting your transcript. " +
+                            "It does not store or share that field text. Tiro writes no audio files " +
+                            "and does not use analytics, crash reporting, an updater, or the clipboard.",
                         14f,
                     ),
                 )
@@ -404,21 +460,22 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun isKeyboardEnabled(): Boolean {
-        val inputMethodManager = getSystemService(InputMethodManager::class.java)
-        return inputMethodManager.enabledInputMethodList.any { info ->
-            info.serviceInfo.packageName == packageName &&
-                info.serviceInfo.name == TiroInputMethodService::class.java.name
-        }
-    }
-
-    private fun isKeyboardSelected(): Boolean {
-        val selected = Settings.Secure.getString(
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val accessibilityEnabled = Settings.Secure.getInt(
             contentResolver,
-            Settings.Secure.DEFAULT_INPUT_METHOD,
-        )
-        val component = ComponentName(this, TiroInputMethodService::class.java)
-        return selected == component.flattenToString() || selected == component.flattenToShortString()
+            Settings.Secure.ACCESSIBILITY_ENABLED,
+            0,
+        ) == 1
+        if (!accessibilityEnabled) return false
+
+        val component = ComponentName(this, TiroAccessibilityService::class.java)
+        val enabledServices = Settings.Secure.getString(
+            contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+        ).orEmpty()
+        return enabledServices.split(':').any { flattened ->
+            ComponentName.unflattenFromString(flattened) == component
+        }
     }
 
     private fun statusRow(number: String, title: String, ready: Boolean): View =
