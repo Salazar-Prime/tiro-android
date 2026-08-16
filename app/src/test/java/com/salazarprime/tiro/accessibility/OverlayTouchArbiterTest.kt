@@ -40,12 +40,30 @@ class OverlayTouchArbiterTest {
     }
 
     @Test
-    fun movingAfterVoiceStartsSwitchesToDragSoTheServiceCanCancelVoice() {
+    fun movingAfterVoiceStartsDragsWhileKeepingVoiceActiveUntilRelease() {
         val arbiter = OverlayTouchArbiter()
 
         arbiter.down()
         arbiter.holdTimeout()
         assertEquals(listOf(Action.START_DRAG), arbiter.move(beyondDragThreshold = true))
-        assertEquals(listOf(Action.END_DRAG), arbiter.up())
+        assertTrue(arbiter.isDragging)
+        assertEquals(
+            listOf(Action.END_DRAG, Action.RELEASE_VOICE_GESTURE),
+            arbiter.up(),
+        )
+    }
+
+    @Test
+    fun cancellingAnActiveVoiceDragEndsTheDragAndCancelsVoice() {
+        val arbiter = OverlayTouchArbiter()
+
+        arbiter.down()
+        arbiter.holdTimeout()
+        arbiter.move(beyondDragThreshold = true)
+
+        assertEquals(
+            listOf(Action.END_DRAG, Action.CANCEL_VOICE_GESTURE),
+            arbiter.cancel(),
+        )
     }
 }

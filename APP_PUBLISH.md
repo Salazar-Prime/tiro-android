@@ -7,7 +7,7 @@ Tiro for Android is currently a source preview. This document is a release check
 1. Select and add a software license, then review all artwork and notices for compatible terms.
 2. Replace the development version with an approved version name and monotonically increasing version code.
 3. Run `./gradlew test assembleDebug lintDebug` from a clean clone and confirm CI passes.
-4. Test press-and-hold, quick-tap recording, drag cancellation, remembered position, position reset, icon sizing, opacity, selection replacement, transcript deletion, focus changes, rotation, light/dark mode, process recreation, and service disable/re-enable on physical Android 12, 13, 14, 15, and 16 devices where available.
+4. Test press-and-hold, quick-tap recording, drag before recording, drag while recording, remembered position, position reset, icon sizing, opacity, selection replacement, transcript deletion, focus changes, rotation, light/dark mode, process recreation, and service disable/re-enable on physical Android 12, 13, 14, 15, and 16 devices where available.
 5. Verify with Gboard and at least one other normal keyboard that the IME remains visible and selected while the floating logo is used. Test multiple native apps and web fields, plus fields that reject accessibility insertion.
 6. Confirm that the button appears only for focused editable fields, never for password fields, and disappears when focus leaves the field or consent/service access is revoked.
 7. Verify behavior both with a ready English language pack and with the pack missing. Never add a silent network-recognizer fallback.

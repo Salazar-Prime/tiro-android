@@ -153,7 +153,9 @@ class TiroAccessibilityService : AccessibilityService(), RecognitionListener {
                 cancelRecognition()
             }
             created.onDragStart = {
-                cancelRecognition()
+                if (gestureMachine.isSustained) {
+                    handleGestureActions(gestureMachine.cancel())
+                }
                 val params = created.layoutParams as? WindowManager.LayoutParams
                 dragOrigin = OverlayPlacement.Point(params?.x ?: 0, params?.y ?: 0)
             }
