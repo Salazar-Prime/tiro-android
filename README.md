@@ -4,13 +4,22 @@
 
 <h1 align="center">Tiro for Android</h1>
 
-<p align="center">Hold one floating button, speak, and put the transcript at your cursor without closing your keyboard.</p>
+<p align="center">
+  <img
+    src="https://readme-typing-svg.demolab.com?font=SF+Mono&amp;size=20&amp;duration=2800&amp;pause=900&amp;color=2F6B5D&amp;center=true&amp;vCenter=true&amp;width=760&amp;lines=Tiro+can+transcribe+for+you%E2%80%94without+switching+keyboards.;Hold+the+floating+button.+Speak.+Release.+Keep+typing."
+    alt="Tiro can transcribe for you—without switching keyboards."
+  >
+</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-source_preview-2f6b5d" alt="Source preview">
   <img src="https://img.shields.io/badge/Android-12%2B-1f2937" alt="Android 12 or newer">
   <img src="https://img.shields.io/badge/transcription-on_device_only-1f2937" alt="On-device transcription only">
   <a href="https://github.com/Salazar-Prime/tiro-android/actions/workflows/android.yml"><img src="https://github.com/Salazar-Prime/tiro-android/actions/workflows/android.yml/badge.svg" alt="Android CI status"></a>
+</p>
+
+<p align="center">
+  <a href="#build-from-source">Build the source preview</a> · <a href="https://github.com/Salazar-Prime/tiro">Get Tiro for macOS</a>
 </p>
 
 Tiro adds one floating voice button beside the active text field in Android apps. Your usual keyboard stays selected and visible. Hold the Tiro logo and release for press-to-talk, or quick-tap it to keep recording until the next tap. Tiro uses Android's explicit on-device speech recognizer and does not request Internet access.
@@ -51,6 +60,15 @@ The Accessibility Service is required to detect focused editable fields, show th
 The button is a non-focusable Android accessibility overlay. It waits briefly to distinguish a still hold from a drag. Moving past the drag threshold before voice capture begins selects relocation without starting the microphone. Once voice capture is active, dragging changes only the button position and recording continues. After a normal release or stop tap, Tiro keeps listening for the configured release delay so the system recognizer can receive the final word before transcription begins. The editable delay accepts 0–2,000 milliseconds and defaults to 450 milliseconds. The button uses Tiro's rounded-square app-icon shape rather than Android's device-dependent launcher mask. It does not replace, dismiss, or switch your keyboard. Its glass outline changes from teal to amber while the microphone is active. Android's speech service may still end a hands-free session after silence.
 
 Tiro does not request Android's generic **Display over other apps** permission. The floating button uses `TYPE_ACCESSIBILITY_OVERLAY` and is available only while Tiro's Accessibility Service is enabled.
+
+## Feature checklist
+
+- [x] Hold to transcribe into the active field without switching keyboards
+- [x] Quick-tap for hands-free recording
+- [x] Keep transcription on-device without requesting Internet access
+- [x] Move the floating control and customize its size, opacity, and release delay
+- [x] Choose from five offline English variants
+- [x] View, delete, or clear up to 25 transcripts stored in private app preferences
 
 ## Distribution
 
